@@ -1,0 +1,648 @@
+---
+title: "FGRS-LTFH-PA_thr comparison in simulated data"
+author: "Morten Dybdahl Krebs"
+date: "29 6 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 
+
+LTFH and FGRS are two ways of summarizing genetic liability a disease given disease status of family members. 
+Here we assess the correlation with the the true genetic liablilty in simulated data and the impact of prevalence, types of relatives, right-censoring and coenviromentability. 
+
+## Simulated Data
+
+### Pedigree
+We start with a pedigree that looks like this:
+```{r , include=F}
+library(FamAgg)
+library(knitr)
+library(ggplot2)
+
+data("minnbreast")
+# we get a pedigree of 28 people:
+ped <- minnbreast[minnbreast$famid==600,]
+
+ped <- ped[c(which(ped$id==25932),which(ped$id!=25932)),] 
+ped <-ped[!ped$id %in% 25934:25936,]
+
+fatherid = ped[ped[,"id"] %in% ped[1,"fatherid"],"id"]
+motherid = ped[ped[,"id"] %in% ped[1,"fatherid"],"id"]
+sib_id = unique(c(ped[ped[,"fatherid"] %in% ped[1,"fatherid"],"id"], ped[ped[,"motherid"] %in% ped[1,"motherid"],"id"]))
+sib_id <- sib_id[!sib_id ==25932]
+
+r <- kinship2::kinship(ped$id, dadid =ped$fatherid ,momid =ped$motherid)*2
+depth<- kinship2::kindepth(kinship2::pedigree(ped$id, dadid =ped$fatherid ,momid =ped$motherid,sex = ped$sex),align = T)
+
+gen_back = abs(depth-depth[1])
+
+```
+
+```{r ,echo=F}
+plot(kinship2::pedigree(ped$id, dadid =ped$fatherid ,momid =ped$motherid,sex = ped$sex))
+```
+
+### Covariance in liability
+From this pedigree we specify a covariance matrix assuming a heritability of 0.5: 
+```{r, echo=F}
+h2 = .5
+
+#given the following phenotypic cov matrix:
+covmatrix= r*h2
+diag(covmatrix) <- 1
+covmatrix[1,1] = h2
+
+```
+
+```{r}
+covmatrix[1:5,1:5]
+```
+
+
+### Disease status in relatives
+We draw liabilities from multivarite normal distribution. We the draw $N=1000$ proband with accompanying relatives. and turn the liabilities into lifetime disease status be a threshold function and into observed disease with a probability corresponding the proportion of risk expressed at their age at end of follow-up, assuming a monotone age-of onset curve upto age 65.    
+
+```{r,, include=F}
+prev= .2 
+thr= qnorm(1-prev)  
+  
+
+N=1000 #Number of probands 
+
+ped$age <- sapply(gen_back,function(x) if(x>1) runif(1,60,100) else if(x==1) runif(1,40,70) else
+    runif(1,10,40))
+
+# age of onset curve :
+aoo <- function(age) { 
+  pr <- age/65
+  pr[pr>1] <- 1
+  pr}  
+  
+sim <- function(N,covmatrix,thr,aoo){
+
+
+
+  
+# draw from mvnorm distribution:
+df <- MASS::mvrnorm(N,mu =rep(0,nrow(covmatrix)),covmatrix)
+  
+# introduce varying family structure:
+df[sample((N+1):(N*nrow(covmatrix)),N*nrow(covmatrix)/2,replace = F)] <- NA
+df <- data.frame(df) 
+colnames(df) <- paste0("z",1:nrow(covmatrix))
+
+age <- t(matrix(ped$age[-1],nrow(covmatrix)-1,N))
+
+# expressed proportion of lifetime risk: 
+prop_risk <- apply(age,2,aoo) 
+
+# threshold
+status <- apply(df[,2:nrow(covmatrix)], 2, function(x) x>thr)
+suppressWarnings(status[which(status)] <-  sapply(prop_risk[which(status)], function(x) rbinom(1,1,prob = x)))
+# Dataframe with true liabilities, status and age:
+cbind(df,status=status,age=age)
+}
+
+df <- sim(N,covmatrix,thr,aoo)
+
+```
+
+# Esimated liabilities:
+
+In Hujoel et al 2020, they use two different methods: LTPA and LTFH, however these methods give very similar estimates (correlation 0.999). We therefor chose only the 
+
+```{r, include=F}
+
+min_rel =.10 # 
+## FGRS parameters 
+
+aoo <- function(age) { 
+  
+  pr <- (age-20)/45
+  pr[pr>1] <- 1
+  pr[pr<0] <- 0
+  pr}  
+
+plot(sapply(1:100,aoo))
+  
+rel_mat <- r 
+env_cor=1
+
+
+
+
+
+# MORTEN, this is the same as in the R file right?
+#FGRS <- function(df, stat_cols=which(grepl("stat",colnames(df))) ,age_cols=which(grepl("age",colnames(df))) , rel_mat, prev, env_cor, aoo,ped){ 
+# 
+#  age= as.matrix(df[,age_cols])
+#  status= as.matrix(df[,stat_cols])
+#
+#  w <- apply(age,2,aoo)
+#  w[!is.na(status)&status==1] <- 1 
+#
+#  zhat_above = integrate(qnorm,1-prev,1)[[1]]/prev
+#  zhat_below = integrate(qnorm,0,1-prev)[[1]]/(1-prev)
+#  
+#  zhat  <- apply(status, 2, function(x) ifelse(x==1,zhat_above,zhat_below)) 
+#  
+#  df <- cbind(df, age= age, w= w , zhat=zhat)
+#  
+#  # number of relatives >0
+#  df$n_rel <- apply(df[,2:nrow(rel_mat)],1,function(x) sum(!is.na(x)))
+#  #df <- df[!df$n_rel==0,]
+#  
+#  stat_cols <- which(grepl("stat",colnames(df)))  
+#  zhat_cols <- which(grepl("zhat",colnames(df)))  
+#  w_cols <- which(grepl("w",colnames(df)))  
+#  pr_cols <- which(grepl("prop_risk",colnames(df)))  
+#  max_rel <- length(zhat_cols)
+#  
+#  # Summaries of family risk:
+#  df$sum_rzw <- rowSums(df[,zhat_cols]*df[,w_cols]*t(matrix(rel_mat[1,-1],max_rel,N)),na.rm = T)
+#  
+#  df$sum_r <- rowSums(as.numeric(!is.na(df[,zhat_cols]))*t(matrix(rel_mat[1,-1],max_rel,N)),na.rm = T)
+#  
+#  df$mean_rzw <- df$sum_rzw/df$n_rel
+#  var_rel<-   var(unlist(df[,zhat_cols]),na.rm=T)  
+#  df$mean_rzw_shrunk <- df$mean_rzw*(var(df$mean_rzw)/(var(df$mean_rzw)+var_rel/df$sum_r))
+#df$mean_rzw_shrunk  
+#}
+
+fgrs <- FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1,ped=ped) 
+cor.test(fgrs,df$z1)
+
+
+
+pa_thr_hier <- function(rel_status,rel_thr,covmat,i_status=NA,i_thr=NA) {
+  # remove NA's
+  nonnas <- !is.na(rel_status)
+  rel_status<-rel_status[nonnas]
+  rel_thr<-rel_thr[nonnas]
+  covmat <- covmat[c(T,nonnas),c(T,nonnas)]
+  
+  # order 
+  ord <- order(rel_thr,-covmat[-1,1],-rowSums(covmat[-1,]))
+  rel_status <- rel_status[ord]
+  rel_thr <- rel_thr[ord]
+  covmat <- covmat[c(1,ord+1),c(1,ord+1)]
+  #  
+  updated_m <- t(t(c(0,sapply(1:length(rel_status), function(x){ # E(l_j|Y_j,T_j)
+    ifelse(rel_status[x]==1, 
+           lambda_fun_above(rel_thr[x]),
+           lambda_fun_below(rel_thr[x])
+    )}) )))
+  new_m <-t(t(rep(0,nrow(covmat))))   # E(l_j)
+  orig_cov <- new_cov <- covmat
+  
+  delta = c(0,sapply(1:length(rel_status), function(x) # 
+    ifelse(rel_status[x]==1, 
+           delta_fun( lambda_fun_above(rel_thr[x]),rel_thr[x]),
+           delta_fun( lambda_fun_below(rel_thr[x]),rel_thr[x]))) )
+  
+  updated_var <- 1-delta
+  
+  # Selection
+  for(i in 1:length(rel_status)){
+    j <- nrow(new_cov)
+    updated_cov = new_cov[-j,-j,drop=F] -
+      new_cov[-j,j]%*%(solve(new_cov[j,j])-solve(new_cov[j,j])%*%updated_var[j]%*%solve(new_cov[j,j]))%*%new_cov[j,-j]
+    new_m  = new_m[-j,] + new_cov[-j,j]%*%solve(new_cov[j,j])%*%(updated_m[j,1]-new_m[j,1])
+    new_cov=updated_cov
+    if(j>2){
+      alpha = rel_thr[j-1] - new_m[j-1] / sqrt(covmat[j-1,j-1])
+      lambda_alpha = ifelse(rel_status[j-2] == 1, lambda_fun_above(alpha),lambda_fun_below(alpha))
+      delta_alpha =  delta_fun(lambda_alpha,alpha)
+      updated_m[j-1,] = new_m[j-1,1] + sqrt(updated_cov[j-1,j-1])*lambda_alpha
+      updated_var[j-1] = updated_cov[j-1,j-1]*(1-delta_alpha)}
+    # update mean
+    #   new_mean = mean_matrix[2,1]+ cov_matrix[2,1]%*%solve(cov_matrix[1,1])%*%(mean_after_selec-mean_matrix[1,1])
+    # update variance
+    
+  }
+  
+  
+  c(postM=new_m,postVar=new_cov)
+}
+
+
+PA_thr <- function(df, stat_cols=which(grepl("stat",colnames(df))) ,age_cols=which(grepl("age",colnames(df))) , rel_mat, prev, env_cor, aoo,ped){ 
+data.frame(Reduce('rbind',lapply(1:nrow(df), function(y){
+  age= df[y,age_cols]
+  status= df[y,stat_cols]
+
+  w <- sapply(age,aoo)
+  w[!is.na(status)&status==1] <- 1 
+
+  thr <- sapply(w, function(x) qnorm(1-prev*x))
+
+  pa_thr_hier(status,thr,covmat = rel_mat)})))
+}
+
+
+PA <- function(df, stat_cols=which(grepl("stat",colnames(df))) ,age_cols=which(grepl("age",colnames(df))) , rel_mat, prev, env_cor, aoo,ped){ 
+data.frame(Reduce('rbind',lapply(1:nrow(df), function(y){
+  age= df[y,age_cols]
+  status= df[y,stat_cols]
+
+  w <- sapply(age,aoo)
+  w[!is.na(status)&status==1] <- 1 
+
+  thr <- rep(qnorm(1-prev),length(status))
+
+  pa_thr_hier(status,thr,covmat = rel_mat)})))
+}
+
+# devtools::install_github("DesmondCampbell/diseaseRiskPredictor")
+library(diseaseRiskPredictor)
+
+gibbs <-  function(df, stat_cols=which(grepl("stat",colnames(df))) ,age_cols=which(grepl("age",colnames(df))) , rel_mat, prev, env_cor, aoo,ped){ 
+  data.frame(Reduce('rbind',lapply(1:nrow(df), function(y){
+    age= df[y,age_cols]
+    status= unlist(df[y,stat_cols])
+
+    dfPed=ped  
+    dfPed$age=unlist(c(0,age))
+    thr=qnorm(1-prev)
+    dfPed$thr=thr
+    dfPed$expressedProportionOfLifetimeRisk = sapply(dfPed$age, aoo) 
+    dfPed$affected[2:nrow(dfPed)] = status
+    
+    nonna <- unlist(c(T, !is.na(dfPed$affected[2:nrow(dfPed)])))
+    
+    dfPed<- dfPed[nonna,]
+    
+    mPriorCov = rel_mat[nonna,nonna]
+    status <- status[nonna[-1]]
+    rownames(mPriorCov) <- colnames(mPriorCov) <- paste0("liability_Tot_",dfPed$id)
+    mPriorMean =   updated_m <- t(t(c(0,sapply(1:length(status), function(x){ # E(l_j|Y_j,T_j)
+    ifelse(status[x]==1, 
+           lambda_fun_above(thr),
+           lambda_fun_below(thr)
+    )}) )))
+    mPriorMean[is.na(mPriorMean),] <-0
+    rownames(mPriorMean) <- paste0("liability_Tot_",dfPed$id)
+    lConditioningOnRest <- diseaseRiskPredictor:::fnCalcConditioningOnRestOfVariables( mPriorCov )
+    lmRegCoeff <- lConditioningOnRest$lmRegCoeff
+    vPostStdDevB <- lConditioningOnRest$vPostStdDevB
+    mean(diseaseRiskPredictor:::fnGibbsSampler( dfPed, mPriorMean, lmRegCoeff, vPostStdDevB, 100, 30000, F )[,1])
+
+  })))}
+
+
+```
+
+
+
+```{r, include=F,cache=T}
+setwd("~/Downloads/software v2/")
+source("assign_ltpa.R")
+
+df2 <- df
+ 
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno_ltpa <- create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 )
+
+
+setwd("..")
+
+setwd("software/")
+source("assign_ltfh.R")
+
+df2 <- df
+ 
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno_ltfh <- create_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 2)
+
+
+
+```
+
+```{r}
+plot(pheno_ltfh[,4],pheno_ltpa[,4],main = )
+
+cor(pheno_ltfh[,4],pheno_ltpa[,4],use = "complete")
+
+```
+
+
+
+
+### Under varying lifetime prevalence
+
+```{r,echo=F, cache=T}
+Nsim=50
+
+prev_levels <- seq(0.01,0.5,length.out = 8)
+#prev_levels <- 0.001*2^c(1:8)
+
+
+out <- lapply(prev_levels, function(prev) { 
+
+thr <- qnorm(1-prev)  
+   
+Sims <- lapply(1:Nsim , function(x) {
+
+df <- sim(N,covmatrix,thr,aoo)
+rel_mat <- r 
+env_cor=1
+
+  
+fgrs <- FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+pa_thr_out <- PA_thr(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+pa_out <- PA(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+
+
+
+df2 <- df
+
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno <- create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 )
+    
+cor(cbind(true_liab=df$z1,fgrs,pa_thr= pa_thr_out[,1],pa= pa_out[,1],ltpa=pheno[,"ltpa"]),use = "complete")
+})
+
+mean_cor = Reduce('+',Sims)/Nsim
+
+se_cor = Reduce('+',lapply(Sims,function(y) abs(y-mean_cor)/Nsim))/sqrt(Nsim)
+ 
+list(mean_cor,se_cor)                 
+})  
+
+dt <- data.frame(prev=prev_levels,t(sapply(out, function(x) 
+c(mean=x[[1]][-1,1],se=x[[2]][-1,1]))))
+dt <- reshape(dt,direction = "long",varying = list(mean=c("mean.fgrs","mean.pa_thr","mean.pa","mean.ltpa"),se=c("se.fgrs","se.pa_thr","se.pa","se.ltpa")),times = c("fgrs","pa_thr","pa","ltpa"),v.names = c("mean","se"))
+ggplot(dt#[dt$time %in% c("pa","pa_thr"),]
+       ,aes(x=factor(prev),y=mean, color=time))+geom_point()+geom_errorbar(aes(ymin=mean-1.96*se,ymax=mean+1.96*se))+labs(x="Prevalence",y= "Correlation with true genetic liability")+geom_line()+theme_bw()
+```
+
+```{r, runtimes}
+library(data.table)
+
+runtimes<- c(0,0,0,0,0,0,0)
+#sapply(10^(1:4),function(N){
+for(N in 2^(1:4)){  
+df <- sim(N,covmatrix,thr,aoo)
+rel_mat <- r 
+env_cor=1
+
+
+df2 <- df
+
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+
+runtimes<- rbind(runtimes,c(N,
+  system.time(FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1))[3], 
+  system.time(PA_thr(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1))[3], 
+  system.time(PA(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1))[3], 
+  system.time(create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 ))[3],
+  system.time(create_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 ))[3],
+  ifelse(N<=4,system.time(gibbs(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1,ped = ped))[3],NA)
+  
+  ))
+}
+
+colnames(runtimes) <- c("N","FGRS","PA_thr","PA","ltpa","ltfh","gibbs")
+
+runtimes <- data.table(runtimes)
+
+runtimes <- melt(runtimes,id.vars = "N",value.name = "seconds",variable.name = "method")
+
+ggplot(runtimes[N!=0],aes(y=seconds,x=N,color=method))+geom_point()+theme_bw()+geom_line()+
+  scale_y_continuous(trans='log2',labels = function(x) format(x, scientific = F))+
+  scale_x_continuous(trans='log2')
+
+```
+
+
+
+
+## Types of relatives:
+
+Keeping the prevalence fixed at 0.2, we now look at the types of relatives included. While LTFH only looks at first-degree relatives, FGRS takes any type of relative. 
+Here we show how the correlations approximate each other when more distant relatives are omitted from the (FGRS) estimates:
+
+```{r,echo=F, cache=T}
+Nsim=50
+rel_mat <- r  
+
+out <- lapply(c(.0625,.125,.25,0.5), function(r_ind) { 
+ 
+   
+rel_mat[rel_mat<r_ind] <- 0  
+
+Sims <- lapply(1:Nsim , function(x) {
+
+df <- sim(N,covmatrix,thr,aoo)
+
+env_cor=1 
+
+  
+fgrs <- FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+
+
+
+df2 <- df
+
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno <- create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 )
+    
+cor(cbind(true_liab=df$z1,fgrs,ltpa=pheno[,"ltpa"]),use = "complete")
+})
+
+
+mean_cor = Reduce('+',Sims)/Nsim
+
+se_cor = Reduce('+',lapply(Sims,function(y) abs(y-mean_cor)/Nsim))/sqrt(Nsim)
+ 
+list(mean_cor,se_cor)                 
+})  
+
+dt <- data.frame(min_r=c(.0625,.125,.25,0.5),t(sapply(out, function(x) c(mean=x[[1]][-1,1],se=x[[2]][-1,1]))))
+dt <- reshape(dt,direction = "long",varying = list(mean=c("mean.fgrs","mean.ltpa"),se=c("se.fgrs","se.ltpa")),times = c("fgrs","ltpa"),v.names = c("mean","se"))
+ggplot(dt,aes(x=min_r,y=mean, color=time))+geom_point()+geom_errorbar(aes(ymin=mean-1.96*se,ymax=mean+1.96*se))+labs(title = "Correlation with true genetic liability")
+
+
+```
+
+## Censoring 
+
+LTFH doesn't account for censoring, but FGRS does. Keeping lifetime prevalence fixed to 0.2 considering only first-degree relatives. We show the effect of varying the maximum age of onset (and thereby the impact of censoring). 
+When the maximum age of onset is 0, there is no censoring, and since we are only considering first-degree relatives and not 
+
+```{r,echo=F, cache=T}
+Nsim=50
+
+rel_mat <- r  
+
+rel_mat[r<.5] <- 0
+
+out <- lapply(seq(0,80,length.out = 5), function(max_age) { 
+
+    
+
+Sims <- lapply(1:Nsim , function(x) {
+
+  aoo <- function(age) { 
+  pr <- age/max_age
+  pr[pr>1] <- 1
+  pr}  
+  
+df <- sim(N,covmatrix,thr,aoo)
+
+env_cor=1 
+
+  
+fgrs <- FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+
+
+
+df2 <- df
+
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno <- create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 )
+    
+cor(cbind(true_liab=df$z1,fgrs,ltpa=pheno[,"ltpa"]),use = "complete")
+})
+
+
+mean_cor = Reduce('+',Sims)/Nsim
+
+se_cor = Reduce('+',lapply(Sims,function(y) abs(y-mean_cor)/Nsim))/sqrt(Nsim)
+ 
+list(mean_cor,se_cor)                 
+})  
+
+dt <- data.frame(max_age=seq(0,80,length.out = 5),t(sapply(out, function(x) c(mean=x[[1]][-1,1],se=x[[2]][-1,1]))))
+dt <- reshape(dt,direction = "long",varying = list(mean=c("mean.fgrs","mean.ltpa"),se=c("se.fgrs","se.ltpa")),times = c("fgrs","ltpa"),v.names = c("mean","se"))
+ggplot(dt,aes(x=max_age,y=mean, color=time))+geom_point()+geom_errorbar(aes(ymin=mean-1.96*se,ymax=mean+1.96*se))+labs(title = "Correlation with true genetic liability")+labs(x="maximum age of onset")
+
+
+```
+  
+
+## Sibling status
+
+```{r,eval=F,echo=F, cache=T}
+Nsim=50
+
+rel_mat <- r  
+
+rel_mat[r<.5] <- 0
+
+out <- lapply(seq(0,80,length.out = 5), function(max_age) { 
+
+    
+
+Sims <- lapply(1:Nsim , function(x) {
+
+  aoo <- function(age) { 
+  pr <- age/max_age
+  pr[pr>1] <- 1
+  pr}  
+  
+df <- sim(N,covmatrix,thr,aoo)
+
+env_cor=1 
+
+  
+fgrs <- FGRS(df = df, rel_mat = rel_mat,prev = prev,aoo = aoo,env_cor = 1) 
+
+
+
+df2 <- df
+
+
+df2$IID <- 1:N
+df2$ch_stat <- NA
+df2$p1_stat <-df[,colnames(df) %in% paste0("status.z",which(ped$id %in% fatherid))]
+df2$p2_stat <- df[,colnames(df) %in% paste0("status.z",which(ped$id %in% motherid))]
+df2$s_stat <- apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,any,na.rm = T)
+df2$n_sib <- length(sib_id) -rowSums(t(apply(df[,colnames(df) %in% paste0("status.z",which(ped$id %in% sib_id))],1,is.na)))
+df2$s_stat[df2$n_sib ==0]  <- NA
+
+pheno <- create_ltpa_pheno(data=df2,trait_h2 = .5,T_val_child = qnorm(1-prev),T_val_parent = qnorm(1-prev),relevant_trait_child = "ch_stat",relevant_trait_dad = "p1_stat",relevant_trait_mom = "p2_stat",relevant_trait_sib = "s_stat", number_siblings_col = "n_sib",maximum_siblings_to_compute = 5 )
+    
+cor(cbind(true_liab=df$z1,fgrs,ltpa=pheno[,"ltpa"]),use = "complete")
+})
+
+
+mean_cor = Reduce('+',Sims)/Nsim
+
+se_cor = Reduce('+',lapply(Sims,function(y) abs(y-mean_cor)/Nsim))/sqrt(Nsim)
+ 
+list(mean_cor,se_cor)                 
+})  
+
+dt <- data.frame(max_age=seq(0,80,length.out = 5),t(sapply(out, function(x) c(mean=x[[1]][-1,1],se=x[[2]][-1,1]))))
+dt <- reshape(dt,direction = "long",varying = list(mean=c("mean.fgrs","mean.ltpa"),se=c("se.fgrs","se.ltpa")),times = c("fgrs","ltpa"),v.names = c("mean","se"))
+ggplot(dt,aes(x=max_age,y=mean, color=time))+geom_point()+geom_errorbar(aes(ymin=mean-1.96*se,ymax=mean+1.96*se))+labs(title = "Correlation with true genetic liability")+labs(x="maximum age of onset")
+
+
+```
+
+
+
+
+## Shared environment  
+
+LTFH doesn't account for shared environment, but FGRS does.
+
+
+
+To Do...
+
+
+
