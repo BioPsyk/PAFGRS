@@ -11,8 +11,8 @@ Roxygen: list(markdown = TRUE)
 VignetteBuilder: knitr
 RoxygenNote: 7.2.1
 Imports:
-    knitr
+    knitr,
+    rmarkdown
 Suggests:
     FamAgg,
     ggplot2
-
