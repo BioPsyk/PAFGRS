@@ -16,6 +16,8 @@ Compute a sparse kinship matrix from a pedigree object using path counting
 This is an alternative way of computing the kinhips matrix which is usually slower, but less memory intense.
 }
 \examples{
+library(kinship2)
+data(minnbreast)
 system.time(k_path <- kinship_path(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex))))
 system.time(k_sparse <- kinship_sparse(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex))))
 system.time(k_per_fam <- kinship(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex, famid=famid))))

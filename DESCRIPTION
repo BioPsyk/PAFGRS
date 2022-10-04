@@ -11,8 +11,12 @@ Roxygen: list(markdown = TRUE)
 VignetteBuilder: knitr
 RoxygenNote: 7.2.1
 Imports:
+    methods,
     knitr,
-    rmarkdown
+    rmarkdown,
+    data.table,
+    igraph,
+    kinship2
 Suggests:
     FamAgg,
     ggplot2

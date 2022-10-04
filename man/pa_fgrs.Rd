@@ -32,6 +32,8 @@ pa_fgrs(
 \item{i_thr}{optional specific threshold for index person}
 
 \item{i_w}{optional proportion of risk experienced by index person}
+
+\item{conditional.mix}{logical indicator of wether the mixture of proportions should be conditional (default=TRUE).}
 }
 \description{
 Compute posterior mean and variance of liability of index person given disease status, thresholds and proportion of risk observed in relatives.
