@@ -10,27 +10,24 @@ FGRS(
   age_cols = which(grepl("age", colnames(df))),
   rel_mat,
   prev,
-  env_cor,
-  aoo,
-  ped
+  env_cor = 1,
+  aoo
 )
 }
 \arguments{
-\item{df}{data.frame TODO}
+\item{df}{data.frame with one row per individual with columns containing the phenotype information on the relatives}
 
-\item{stat_cols}{TODO}
+\item{stat_cols}{vector of names of the columns containing the disease status of the relatives}
 
-\item{rel_mat}{TODO}
+\item{age_cols}{vector of names of the columns containing the age of the relatives}
 
-\item{prev}{TODO}
+\item{rel_mat}{relatedness matrix with the first row and column correponding to the index person a subsequent rows to the relatives.}
 
-\item{env_cor}{TODO}
+\item{prev}{numeric indicating disease prevalence}
 
-\item{aoo}{TODO}
+\item{env_cor}{optional numeric. Factor by which the first degree relatives are downweighted.}
 
-\item{ped}{TODO}
-
-\item{age_cold}{TODO}
+\item{aoo}{a function that transforms the age values into a proportion of risk experienced by the individual}
 }
 \description{
 Our implementations of Kendler et al.
