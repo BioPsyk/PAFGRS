@@ -226,15 +226,18 @@ kinship_sparse.pedigreeList <- function(id, chrtype="autosome", ...) {
 #' sum(!k_path[order(rownames(k_path)),order(rownames(k_path))]==k_per_fam[order(rownames(k_per_fam)),order(rownames(k_per_fam))]) 
 #' @rdname kinship_sparse_path
 #' @importFrom igraph all_shortest_paths
+#' @importFrom igraph vertex_attr
+#' @importFrom FamAgg ped2graph
 #' @importFrom utils tail
 #' @import kinship2
+#' @import igraph
 #' @export
 kinship_path <- function(ped){
   ids <- ped$id
   # First convert the pedigree to a graph: 
-  ped_graph <- FamAgg::ped2graph(ped)
+  ped_graph <- ped2graph(ped)
   # We create a list of ancendents by finding all incomming paths: 
-  anc <- Reduce('rbind.data.frame',lapply(names(ped_graph[1,]),function(i){
+  anc <- Reduce('rbind.data.frame',lapply(vertex_attr(ped_graph)[[1]],function(i){
     p <- all_shortest_paths(ped_graph,from = i, mode="in")$res  
     if(length(p)!=0)
       cbind.data.frame(id1=as.numeric(i),id2=as.numeric(names(sapply(p,tail,n=1))),gen=sapply(p,length)-1,path=I(lapply(p,function(x) as.numeric(names(x)))))
