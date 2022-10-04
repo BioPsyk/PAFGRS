@@ -11,6 +11,7 @@
 #' @param i_status optional status of index person, if to be considered 1=affected, 0=not affected, NA= missing 
 #' @param i_thr optional specific threshold for index person 
 #' @param i_w  optional proportion of risk experienced by index person
+#' @param conditional.mix logical indicator of wether the mixture of proportions should be conditional (default=TRUE).
 #' @examples 
 #' pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
 #' 
@@ -19,6 +20,8 @@
 #' @importFrom stats pnorm
 #' @importFrom stats qnorm
 #' @importFrom stats var
+#' @importFrom stats setNames
+#' @import data.table
 #' @export
 pa_fgrs <- function(rel_status,thr=NA,rel_thr=rep(thr,length(rel_status)),rel_w=rep(1,length(rel_status)),covmat,i_status=NA,i_thr=thr,i_w=1,conditional.mix=T) {
   # remove NA's

@@ -17,9 +17,16 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Load PAFGRS package
+
+```{r, PAFGRS}
+library("PAFGRS")
+```
+
 # Load family data
 For a demonstation of the PAFGRS method we load the publicly available data from the Minnesota Breast Cancer Family Study.
 ```{r, data}
+library("FamAgg")
 data("minnbreast")
 
 head(minnbreast[minnbreast$famid==4,1:7])

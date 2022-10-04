@@ -25,6 +25,8 @@ kinship_sparse(id, ...)
 \item{sex}{vector of sex values coded as 1=male, 2=female}
 
 \item{chrtype}{chromosome type.  The currently supported types are "autosome" and "X" or "x".}
+
+\item{dots}{extra arguments to pass forward to internal functions.}
 }
 \description{
 Compute a sparse kinship matrix from pedigree data, a pedigree object or a pedigreeList object
@@ -33,23 +35,33 @@ Compute a sparse kinship matrix from pedigree data, a pedigree object or a pedig
 This is very minor modification of the \code{kinship2::kinship()} function. The only difference is that the kinship matrix returned by this function is always a sparse matrix. This can be usefull when working with large interconnected pedigrees, which cannot be cut into smaller pedigrees by the \code{kinship2::makefamid} function.
 }
 \examples{
+library(kinship2)
 data(minnbreast)
 
-bpeds <- with(minnbreast,pedigree(id, fatherid, motherid, sex, affected=proband, famid=famid))
+bpeds <- pedigree(minnbreast$id, minnbreast$fatherid, minnbreast$motherid, 
+                  minnbreast$sex, affected=minnbreast$proband, 
+		     famid=minnbreast$famid)
 
 identical(as.matrix(kinship_sparse(bpeds[1])),kinship(bpeds[1]))  
 
 identical(
-   with(minnbreast[minnbreast$famid==4,],kinship(id, fatherid, motherid, sex)),
-   as.matrix(with(minnbreast[minnbreast$famid==4,],kinship_sparse(id, fatherid, motherid, sex))))
+   with(minnbreast[minnbreast$famid==4,],kinship(id,fatherid,motherid,sex)),
+   as.matrix(with(minnbreast[minnbreast$famid==4,],
+                  kinship_sparse(id, fatherid, motherid, sex))
+            )
+)
 
 # Note that these are not very efficient:  
-system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],kinship_sparse(id, fatherid, motherid, sex)))
-system.time(kinship_sparse(with(minnbreast[minnbreast$famid \%in\% 4:50,],pedigree(id, fatherid, motherid, sex))))
+system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],
+            kinship_sparse(id, fatherid, motherid, sex)))
+system.time(kinship_sparse(with(minnbreast[minnbreast$famid \%in\% 4:50,],
+            pedigree(id, fatherid, motherid, sex))))
 
 # Splitting into families and computing per per family is much faster: 
-system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],makefamid(id, fatherid, motherid)))
-system.time(kinship(with(minnbreast[minnbreast$famid \%in\% 4:50,],pedigree(id, fatherid, motherid, sex, famid=famid))))
+system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],
+              makefamid(id, fatherid, motherid)))
+system.time(kinship(with(minnbreast[minnbreast$famid \%in\% 4:50,],
+                      pedigree(id, fatherid, motherid, sex, famid=famid))))
 }
 \references{
 Sinnwell J, P, Therneau T, M, Schaid D, J: The kinship2 R Package for Pedigree Data. Hum Hered 2014;78:91-93. doi: 10.1159/000363105
