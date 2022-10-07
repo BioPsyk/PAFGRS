@@ -16,7 +16,8 @@ Imports:
     rmarkdown,
     data.table,
     igraph,
-    kinship2
+    kinship2,
+    Matrix
 Suggests:
     FamAgg,
     ggplot2

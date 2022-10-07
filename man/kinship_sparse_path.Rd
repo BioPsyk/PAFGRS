@@ -7,7 +7,7 @@
 kinship_path(ped)
 }
 \arguments{
-\item{pedigree}{}
+\item{ped}{a pedigree object}
 }
 \description{
 Compute a sparse kinship matrix from a pedigree object using path counting
@@ -18,9 +18,15 @@ This is an alternative way of computing the kinhips matrix which is usually slow
 \examples{
 library(kinship2)
 data(minnbreast)
-system.time(k_path <- kinship_path(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex))))
-system.time(k_sparse <- kinship_sparse(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex))))
-system.time(k_per_fam <- kinship(with(minnbreast[minnbreast$famid \%in\% 4:5,],pedigree(id, fatherid, motherid, sex, famid=famid))))
+mb <- minnbreast[minnbreast$famid \%in\% 4:5,]
+system.time(k_path <- kinship_path(
+     pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex)))
+system.time(k_sparse <- kinship_sparse(
+     pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex)))
+system.time(k_per_fam <- kinship(
+     pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex, famid=mb$famid)))
 identical(k_path,k_sparse) 
-sum(!k_path[order(rownames(k_path)),order(rownames(k_path))]==k_per_fam[order(rownames(k_per_fam)),order(rownames(k_per_fam))]) 
+val1=!k_path[order(rownames(k_path)),order(rownames(k_path))]
+val2=k_per_fam[order(rownames(k_per_fam)),order(rownames(k_per_fam))]
+sum(val1==val2)
 }
