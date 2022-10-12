@@ -18,6 +18,8 @@ kinship_sparse(id, ...)
 \arguments{
 \item{id}{either a pedigree object, pedigreeList object, or a vector of subject identifiers.  Subject identifiers may be numeric or character.}
 
+\item{...}{extra arguments to pass forward to internal functions.}
+
 \item{dadid}{for each subject, the identifier of the biological father. This is only used if \code{id} is a vector.}
 
 \item{momid}{for each subject, the identifier of the biological mother. This is only used if \code{id} is a vector.}
@@ -25,8 +27,6 @@ kinship_sparse(id, ...)
 \item{sex}{vector of sex values coded as 1=male, 2=female}
 
 \item{chrtype}{chromosome type.  The currently supported types are "autosome" and "X" or "x".}
-
-\item{dots}{extra arguments to pass forward to internal functions.}
 }
 \description{
 Compute a sparse kinship matrix from pedigree data, a pedigree object or a pedigreeList object
@@ -37,31 +37,28 @@ This is very minor modification of the \code{kinship2::kinship()} function. The 
 \examples{
 library(kinship2)
 data(minnbreast)
-
-bpeds <- pedigree(minnbreast$id, minnbreast$fatherid, minnbreast$motherid, 
-                  minnbreast$sex, affected=minnbreast$proband, 
-		     famid=minnbreast$famid)
+mb <- minnbreast
+bpeds <- pedigree(mb$id, mb$fatherid, mb$motherid, 
+                  mb$sex, affected=mb$proband, 
+		     famid=mb$famid)
 
 identical(as.matrix(kinship_sparse(bpeds[1])),kinship(bpeds[1]))  
 
+mb2 <- minnbreast[minnbreast$famid==4,]
+
 identical(
-   with(minnbreast[minnbreast$famid==4,],kinship(id,fatherid,motherid,sex)),
-   as.matrix(with(minnbreast[minnbreast$famid==4,],
-                  kinship_sparse(id, fatherid, motherid, sex))
-            )
+   kinship(mb2$id,mb2$fatherid,mb2$motherid,mb2$sex),
+   as.matrix(kinship_sparse(mb2$id, mb2$fatherid, mb2$motherid, mb2$sex))
 )
 
-# Note that these are not very efficient:  
-system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],
-            kinship_sparse(id, fatherid, motherid, sex)))
-system.time(kinship_sparse(with(minnbreast[minnbreast$famid \%in\% 4:50,],
-            pedigree(id, fatherid, motherid, sex))))
+# Note that these are not very efficient:
+mb3 <- minnbreast[minnbreast$famid \%in\% 4:50,]
+system.time(kinship_sparse(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex))
+system.time(kinship_sparse(pedigree(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex)))
 
 # Splitting into families and computing per per family is much faster: 
-system.time(with(minnbreast[minnbreast$famid \%in\% 4:50,],
-              makefamid(id, fatherid, motherid)))
-system.time(kinship(with(minnbreast[minnbreast$famid \%in\% 4:50,],
-                      pedigree(id, fatherid, motherid, sex, famid=famid))))
+system.time(makefamid(mb3$id, mb3$fatherid, mb3$motherid))
+system.time(kinship(pedigree(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex, famid=mb3$famid)))
 }
 \references{
 Sinnwell J, P, Therneau T, M, Schaid D, J: The kinship2 R Package for Pedigree Data. Hum Hered 2014;78:91-93. doi: 10.1159/000363105
