@@ -1,7 +1,9 @@
 # PA-FGRS
 
 ## Tutorial 
-There is a vignette in the wiki
+A tutorial can be found [here](doc/tutorial.Rmd)
+
+If you want to regerate the vignette, then run the following code.
 
 ``` r
 # Make sure to clone this repository
@@ -15,5 +17,5 @@ library(devtools)
 build_vignettes()
 ```
 
-The vignette can now be found in 
+The vignette in the format .html, .R and .RMD can now be found in the `doc` folder. 
 
