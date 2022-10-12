@@ -6,7 +6,7 @@
 #' @param momid for each subject, the identifier of the biological mother. This is only used if \code{id} is a vector.
 #' @param sex vector of sex values coded as 1=male, 2=female
 #' @param chrtype chromosome type.  The currently supported types are "autosome" and "X" or "x". 
-#' @param dots extra arguments to pass forward to internal functions.
+#' @param ... extra arguments to pass forward to internal functions.
 #' @details This is very minor modification of the \code{kinship2::kinship()} function. The only difference is that the kinship matrix returned by this function is always a sparse matrix. This can be usefull when working with large interconnected pedigrees, which cannot be cut into smaller pedigrees by the \code{kinship2::makefamid} function.  
 #' 
 #' @references Sinnwell J, P, Therneau T, M, Schaid D, J: The kinship2 R Package for Pedigree Data. Hum Hered 2014;78:91-93. doi: 10.1159/000363105
@@ -14,31 +14,28 @@
 #' @examples 
 #' library(kinship2)
 #' data(minnbreast)
-#' 
-#' bpeds <- pedigree(minnbreast$id, minnbreast$fatherid, minnbreast$motherid, 
-#'                   minnbreast$sex, affected=minnbreast$proband, 
-#' 		     famid=minnbreast$famid)
+#' mb <- minnbreast
+#' bpeds <- pedigree(mb$id, mb$fatherid, mb$motherid, 
+#'                   mb$sex, affected=mb$proband, 
+#' 		     famid=mb$famid)
 #'
 #' identical(as.matrix(kinship_sparse(bpeds[1])),kinship(bpeds[1]))  
+#'
+#' mb2 <- minnbreast[minnbreast$famid==4,]
 #' 
 #' identical(
-#'    with(minnbreast[minnbreast$famid==4,],kinship(id,fatherid,motherid,sex)),
-#'    as.matrix(with(minnbreast[minnbreast$famid==4,],
-#'                   kinship_sparse(id, fatherid, motherid, sex))
-#'             )
+#'    kinship(mb2$id,mb2$fatherid,mb2$motherid,mb2$sex),
+#'    as.matrix(kinship_sparse(mb2$id, mb2$fatherid, mb2$motherid, mb2$sex))
 #' )
 #' 
-#' # Note that these are not very efficient:  
-#' system.time(with(minnbreast[minnbreast$famid %in% 4:50,],
-#'             kinship_sparse(id, fatherid, motherid, sex)))
-#' system.time(kinship_sparse(with(minnbreast[minnbreast$famid %in% 4:50,],
-#'             pedigree(id, fatherid, motherid, sex))))
+#' # Note that these are not very efficient:
+#' mb3 <- minnbreast[minnbreast$famid %in% 4:50,]
+#' system.time(kinship_sparse(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex))
+#' system.time(kinship_sparse(pedigree(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex)))
 #' 
 #' # Splitting into families and computing per per family is much faster: 
-#' system.time(with(minnbreast[minnbreast$famid %in% 4:50,],
-#'               makefamid(id, fatherid, motherid)))
-#' system.time(kinship(with(minnbreast[minnbreast$famid %in% 4:50,],
-#'                       pedigree(id, fatherid, motherid, sex, famid=famid))))
+#' system.time(makefamid(mb3$id, mb3$fatherid, mb3$motherid))
+#' system.time(kinship(pedigree(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex, famid=mb3$famid)))
 #' @importFrom methods as 
 #' @export
 kinship_sparse <- function(id, ...) {
@@ -46,6 +43,7 @@ kinship_sparse <- function(id, ...) {
 }
 
 #' @rdname kinship_sparse
+#' @importFrom Matrix Diagonal 
 #' @export
 kinship_sparse.default <- function(id, dadid, momid, sex, chrtype="autosome", ...) {
   chrtype <- match.arg(casefold(chrtype), c("autosome", "x"))
@@ -184,6 +182,8 @@ kinship_sparse.pedigree <- function(id, chrtype="autosome", ...) {
 }
 
 #' @rdname kinship_sparse
+#' @importFrom Matrix forceSymmetric 
+#' @importFrom Matrix bdiag 
 #' @export
 kinship_sparse.pedigreeList <- function(id, chrtype="autosome", ...) {
   famlist <- unique(id$famid)
@@ -213,22 +213,29 @@ kinship_sparse.pedigreeList <- function(id, chrtype="autosome", ...) {
 #' kinship sparse path  
 #' 
 #' Compute a sparse kinship matrix from a pedigree object using path counting
-#' @param pedigree  
+#' @param ped a pedigree object
 #' @details This is an alternative way of computing the kinhips matrix which is usually slower, but less memory intense.  
 #'
 #' @examples 
 #' library(kinship2)
 #' data(minnbreast)
-#' system.time(k_path <- kinship_path(with(minnbreast[minnbreast$famid %in% 4:5,],pedigree(id, fatherid, motherid, sex))))
-#' system.time(k_sparse <- kinship_sparse(with(minnbreast[minnbreast$famid %in% 4:5,],pedigree(id, fatherid, motherid, sex))))
-#' system.time(k_per_fam <- kinship(with(minnbreast[minnbreast$famid %in% 4:5,],pedigree(id, fatherid, motherid, sex, famid=famid))))
+#' mb <- minnbreast[minnbreast$famid %in% 4:5,]
+#' system.time(k_path <- kinship_path(
+#'      pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex)))
+#' system.time(k_sparse <- kinship_sparse(
+#'      pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex)))
+#' system.time(k_per_fam <- kinship(
+#'      pedigree(mb$id, mb$fatherid, mb$motherid, mb$sex, famid=mb$famid)))
 #' identical(k_path,k_sparse) 
-#' sum(!k_path[order(rownames(k_path)),order(rownames(k_path))]==k_per_fam[order(rownames(k_per_fam)),order(rownames(k_per_fam))]) 
+#' val1=!k_path[order(rownames(k_path)),order(rownames(k_path))]
+#' val2=k_per_fam[order(rownames(k_per_fam)),order(rownames(k_per_fam))]
+#' sum(val1==val2)
 #' @rdname kinship_sparse_path
 #' @importFrom igraph all_shortest_paths
 #' @importFrom igraph vertex_attr
 #' @importFrom FamAgg ped2graph
 #' @importFrom utils tail
+#' @importFrom Matrix sparseMatrix
 #' @import kinship2
 #' @import igraph
 #' @export
@@ -260,11 +267,15 @@ kinship_path <- function(ped){
   # remove dec: 
   other <- other[!paste(id1,id2,sep = "_") %in% paste(dec$id1,dec$id2,sep = "_"),]
   other <- other[!paste(id1,id2,sep = "_") %in% paste(dec$id2,dec$id1,sep = "_"),]
+  # set data.table variables to make R checker happy (recomended solution by data.table team)
+  path.y <- shortest <- contained <- NULL
   # concatenate path  
   other[,path:=Map(c,other$path.x,lapply(path.y,function(x) rev(x)[-1]))]
   # find the shortest paths (there are often 2) between each pair  
   setkey(other,id2)
   setkey(other,id1)
+  # set data.table function to make R checker happy (recomended solution by data.table team)
+  . <- NULL
   other[,shortest:=!other[,(gen.x+gen.y)>min(gen.x+gen.y),.(id1,id2)]$V1]
   other_shortest <- other[shortest==T]
   other_shortest <- other_shortest[,.(short_path=(list(path))),.(id1,id2)]
@@ -287,6 +298,8 @@ kinship_path <- function(ped){
     non_contained <- non_contained[!non_contained[,(gen.x+gen.y)>min(gen.x+gen.y),.(id1,id2)]$V1]
     other <- rbind.data.frame(other,non_contained[,-c("contained")])
   }
+  # set data.table variables to make R checker happy (recomended solution by data.table team)
+  id1 <- id2 <- gen.x <- gen.y <- path <- r <- NULL
   # combine anc, dec and other 
   rel <- data.table(rbind.data.frame(data.table(anc)[,.(id1,id2,gen.x,gen.y,path)],
                                      data.table(dec)[,.(id1,id2,gen.x,gen.y,path)],
