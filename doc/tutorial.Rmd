@@ -1,0 +1,95 @@
+---
+title: "Tutorial"
+author: "Morten Krebs"
+date: "9/28/2022"
+output: 
+    html_document:
+        theme: flatly
+        toc: yes
+vignette: >
+    %\VignetteIndexEntry{PAFGRS Vignette Tutorial}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\usepackage[utf8]{inputenc}
+    %\SweaveUTF8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load PAFGRS package
+
+```{r, PAFGRS}
+library("PAFGRS")
+```
+
+# Load family data
+For a demonstation of the PAFGRS method we load the publicly available data from the Minnesota Breast Cancer Family Study.
+```{r, data}
+library("FamAgg")
+data("minnbreast")
+
+head(minnbreast[minnbreast$famid==4,1:7])
+```
+
+# Compute a kinship matrix for one family
+Using the \code{kinship2} package, we can compute the kinship matrix as follows: 
+
+```{r, kinship}
+ped_data <- minnbreast[minnbreast$famid==4,c(1:7,14)]
+# generate pedigree
+ped <- pedigree(id = ped_data$id,dadid = ped_data$fatherid,momid = ped_data$motherid,
+                sex = ped_data$sex,affected = ped_data$cancer&ped_data$sex=="F", status=)
+# compute kinsip matrix: 
+k <- kinship2::kinship(ped)
+
+plot(ped)
+```
+
+
+# Generate covariance matrix:
+Under simplifying assumption (e.g. no shared environment, no inbreeding and no assortative mating) and a known heritability, the covariance in liabilities can be specified as: 
+```{r, covmat}
+r <- k*2
+h2= 0.5 
+covmat <- h2*r 
+diag(covmat) <- 1
+```
+
+# Estimate liability of one individual:
+## Naïve estimator 
+A naiv estimator of the genetic liability of the first individual, assuming that all individuals has the same risk can be computed as:
+```{r, fgrs-full-obs}
+covmat <- covmat[c(3,(1:nrow(covmat))[-3]),c(3,(1:nrow(covmat))[-3])]
+covmat[1,1] <- h2 
+ped_data[ped_data$sex=="M",]$cancer <- 0 
+status <- ped_data[-3,]$cancer
+prev <- .05
+thr <- qnorm(1-prev)
+
+pa_fgrs(rel_status = status, covmat = covmat ,thr = thr)
+```
+
+## Sex-specific 
+If we think that some individuals have a higher threshold than others, we can specify it as follows:
+```{r, fgrs-sex}
+ped_data$prev <- .1
+ped_data$prev[ped_data$sex=="M"] <- 0
+ped_data$thr <- qnorm(1-ped_data$prev)
+
+pa_fgrs(rel_status = status, covmat = covmat,rel_thr = ped_data$thr[-3])
+```
+
+## Taking censoring into account 
+Assuming that we know the cumulative incidence curve we can assign the mixture distribution for the censored individuals:
+
+```{r, fgrs-age}
+plot(sapply(1:100,function(x) {
+  w=(x -20 )/80
+  ifelse(w<0,0,w)*.1}),type = "l",ylab = "Cumulative Incidence in Females",xlab = "Age")
+ped_data$w <-(ped_data$endage -20 )/80
+ped_data$w[ped_data$w<0] <- 0
+ped_data$w[ped_data$cancer==1] <- 1
+
+pa_fgrs(rel_status = status, covmat = covmat,rel_thr = ped_data$thr[-3],rel_w = ped_data$w[-3])
+```
