@@ -1,7 +1,7 @@
 # PA-FGRS
 
 ## Tutorial 
-A tutorial can be found [here](https://htmlpreview.github.io/?https://github.com/BioPsyk/PAFGRS/tree/master/doc/tutorial.html).
+A tutorial can be found [here](https://htmlpreview.github.io/?https://github.com/BioPsyk/PAFGRS/blob/master/doc/tutorial.html).
 
 If you want to regenerate the vignette, then run the following code.
 
