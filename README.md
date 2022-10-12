@@ -1,7 +1,7 @@
 # PA-FGRS
 
 ## Tutorial 
-A tutorial can be found [here](doc/tutorial.Rmd)
+A tutorial can be found [here](doc/tutorial.html)
 
 If you want to regerate the vignette, then run the following code.
 
