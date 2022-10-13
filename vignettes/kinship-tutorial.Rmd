@@ -1,0 +1,86 @@
+---
+title: "Kinship Tutorial"
+author: "Morten Krebs"
+date: "10/3/2022"
+output: 
+    html_document:
+        theme: flatly
+        toc: yes
+vignette: >
+    %\VignetteIndexEntry{PAFGRS Vignette Kinship Tutorial}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\usepackage[utf8]{inputenc}
+    %\SweaveUTF8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is a short demonstration of how to compute the kinship matrix when predigrees are very large
+
+# Load PAFGRS package
+
+```{r, PAFGRS}
+library(kinship2)
+library(PAFGRS)
+
+```
+
+# Load family data
+For demonstating this we load the publicly available data from the Minnesota Breast Cancer Family Study.
+```{r, data}
+data("minnbreast")
+
+head(minnbreast[minnbreast$famid==4,1:7])
+```
+
+
+
+# Many small pedigrees 
+
+For small pedigrees kinship can be efficiently estimated for using the kinship2 r-package:  
+
+```{r simple}
+data(minnbreast)
+bpeds <- with(minnbreast,pedigree(id, fatherid, motherid, sex, affected=proband, famid=famid))
+k <- kinship(bpeds)
+dim(k)
+```
+
+# A single large pedigree
+We can explore the idea of a single large pedigree by looking not looking at the famid:
+
+```{r single-ped}
+single_ped <- with(minnbreast[minnbreast$famid %in% 4:200,],pedigree(id, fatherid, motherid, sex, affected=proband))
+single_ped
+system.time(k <- kinship(single_ped))
+dim(k)
+format(object.size(k),units="Mb")
+```
+
+This object will quickly become very hard to store in memory. However we can take advantage of the fact that the matrix is very sparse: 
+
+```{r single-ped-sparse}
+system.time(k_sparse <- kinship_sparse(single_ped))
+dim(k_sparse)
+format(object.size(k_sparse),units="Mb")
+```
+
+Further, we can also estimate kinship coefficients for pedigrees at this scale by a path counting algorithm :
+
+```{r single-ped-sparse-path}
+system.time(k_sparse_path <- kinship_path(single_ped))
+
+dim(k_sparse_path)
+format(object.size(k_sparse_path),units="Mb")
+
+identical(k_sparse_path,k_sparse)
+
+```
+
+
+
+
+
+

@@ -15,9 +15,9 @@ Imports:
     knitr,
     rmarkdown,
     data.table,
+    FamAgg,
     igraph,
     kinship2,
     Matrix
 Suggests:
-    FamAgg,
     ggplot2
