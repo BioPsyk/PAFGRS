@@ -1,0 +1,349 @@
+LDpred_prob <- function(beta, h2,M,N,p){
+  num = p/sqrt(h2/(M*p)+1/N)*exp(-1/2*(beta^2)/(h2/(M*p)+1/N))
+  den= num+(1-p)*sqrt(N)*exp(-1/2*N*beta^2)
+  prob=num/den}
+# 
+# LDpred_prob <- function(beta, h2,M,N,p){
+#   num = p*dnorm(beta,0,1/sqrt(h2/(M*p)+1/N))
+#   den= num+(1-p)*dnorm(beta,0,1/sqrt(N))
+#   prob=num/den}
+
+
+
+r2_cc_sample_LDpred = function(N_case,N_control,M,prev,h2_l,p){
+  N=(N_case+N_control)
+  w=N_case/N
+  i_q <- dnorm(x=qnorm(1-prev))/ prev
+  N_pop = N*w*(1-w)/(prev^2*(1-prev)^2)*dnorm(qnorm(1-prev))^2 
+  R2gg <- 1/(1+M/(N_pop*h2_l))
+  int_range=(sqrt(h2_l/(M*p)+1/N_pop))*c(-7,7)
+  c(N_quant_eq=N_pop,OLS=R2gg*h2_l,
+    LDpred_exp=h2_l/(h2_l+p*M/(N_pop))*h2_l*1/(h2_l/(M*p)+1/N_pop)*
+      integrate(function(x) {
+        x^2*dnorm(x,0,sqrt(h2_l/(M*p)+1/N_pop))*
+          #1/sqrt(2*pi*(h2/(M*p)+1/N_pop))*exp(-1/2*(x^2)/(h2/(M*p)+1/N_pop))*
+          LDpred_prob(beta=x,h2_l,M,N_pop,p)
+      }  ,      int_range[1],int_range[2])[[1]])  
+  
+}
+
+
+
+
+
+r2_cc_sample = function(N_case,N_control,M,prev,h2_l){
+  N=(N_case+N_control)
+  w=N_case/N
+  i_q <- dnorm(x=qnorm(1-prev))/ prev
+  i_q_1 <- dnorm(x=qnorm(prev))/ (1-prev)
+  i_bar <- w*i_q - (1-w)*i_q_1
+  lwh2ii2=N/M*w*h2_l*(i_q-i_bar)^2 
+  R2gg <- lwh2ii2/(lwh2ii2+(1-w)*(1-h2_l*i_bar*(i_bar-qnorm(1-prev))))
+  R2gg*h2_l
+}
+
+
+r2_pop_sample = function(N,M,prev,h2_l){
+  i_q <- dnorm(x=qnorm(1-prev))/ prev
+  R2gg <- 1/(1+M*(1-prev)/(N*h2_l*prev*i_q^2))
+  R2gg*h2_l
+}
+## Expectations of FGRS accuracy: 
+
+### Quantitative trait:
+r_EBV <- function(nrel=2 , h2=.5, rel_rr=0.5,rel_ir=0.5){
+  P <- matrix(h2*rel_rr,nrow = nrel,ncol=nrel)
+  diag(P) <-1
+  G <- matrix(h2*rel_ir,nrow = nrel,ncol=1)
+  sqrt(t(G)%*%solve(P)%*%G/h2)[1,1]
+}
+
+## We can also write an explicit formula, when all relatives are equally related
+### https://wiki.groenkennisnet.nl/
+r_EBV_expl <- function(nrel=2 , h2=.5, rel_rr=0.5,rel_ir=0.5){
+  sqrt(rel_ir^2*nrel*h2/(1+(nrel-1)*rel_rr*h2))
+}
+
+
+#  first order Taylor approximation matrix notation:
+r_fgrs_1st <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  P <- matrix(h2*rel_ir,nrow = nrel,ncol=nrel)*(dnorm(qnorm(1-prev)))^2
+  diag(P) <-(prev*(1-prev))  
+  G <- matrix(h2*rel_rr,nrow = nrel)*(dnorm(qnorm(1-prev)))
+  sqrt(t(G)%*%solve(P)%*%G/h2)
+}
+
+# first order Taylor approximation:
+r_fgrs_expl_1st <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  sqrt(nrel/(1+(nrel-1)*rel_rr*h2*(dnorm(qnorm(1-prev)))^2/(prev*(1-prev)))*rel_ir^2*h2^2*(dnorm(qnorm(1-prev)))^2/(prev*(1-prev)) /h2)  }
+
+
+max(sapply(1:50,r_fgrs_1st)-sapply(1:50,r_fgrs_expl_1st))
+
+# second order Taylor approximation matrix version: 
+r_fgrs_2nd <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  p <- h2*rel_rr*dnorm(qnorm(1-prev))^2*(1+h2*rel_rr*qnorm(1-prev)^2/2)
+  P <- matrix(p,nrow = nrel,ncol=nrel)
+  diag(P) <-(prev*(1-prev))  
+  G <- matrix(h2*rel_ir,nrow = nrel)*(dnorm(qnorm(1-prev)))
+  sqrt(t(G)%*%solve(P)%*%G/h2)
+}
+
+# second order Taylor approximation explicit version
+r_fgrs_expl_2nd <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  rho=dnorm(qnorm(1-prev))^2*rel_rr*h2/(prev*(1-prev))*(1+(rel_rr*h2*qnorm(1-prev)^2)/2)
+  num=nrel*h2*rel_ir^2*dnorm(qnorm(1-prev))^2
+  den=(1+(nrel-1)*rho)*(prev*(1-prev))
+  sqrt(num/den)  }
+
+
+# numerical integration explicit version:
+r_fgrs_expl_int <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  rho=(mvtnorm::pmvnorm(lower = rep(qnorm(1-prev),2),sigma = matrix(c(1,rel_rr*h2,rel_rr*h2,1),2,2))-prev^2)/(prev*(1-prev))
+  num=nrel*h2*rel_ir^2*dnorm(qnorm(1-prev))^2
+  den=(1+(nrel-1)*rho)*(prev*(1-prev))
+  sqrt(num/den)  }
+
+
+# fgrs accuracy given pedigree or relatedness matrix - 2nd order taylor approximation :
+r_fgrs_pedigree_2nd <- function(prev=0.2 , h2=.5, ped=NULL,rel_matrix=NULL){
+  if(is.null(rel_matrix))
+    rel <- kinship(pedigree(id=ped$id,dadid = ped$dadid,momid = ped$momid,sex=ped$sex))*2
+  else rel <- rel_matrix
+  #P <- h2*rel[-1,-1]*(dnorm(qnorm(1-prev)))^2
+  P <- h2*rel[-1,-1]*dnorm(qnorm(1-prev))^2*(1+h2*rel[-1,-1]*qnorm(1-prev)^2/2)
+  diag(P) <-(prev*(1-prev))  
+  
+  diag(P) <-(prev*(1-prev))  
+  G <- h2*rel[-1,1]*(dnorm(qnorm(1-prev)))
+  c(r=sqrt(t(G)%*%solve(P)%*%G/h2),n_rel=sum(G>0))}
+
+# fgrs accuracy given pedigree or relatedness matrix - numerical integration :
+r_fgrs_pedigree_int <- function(prev=0.2 , h2=.5, ped=NULL,rel_matrix=NULL,rel_w=NULL,rel_prev=NULL){
+  if(is.null(rel_matrix))
+    rel <- kinship(pedigree(id=ped$id,dadid = ped$dadid,momid = ped$momid,sex=ped$sex))*2
+  else rel <- rel_matrix
+  if(is.null(rel_prev)) rel_prev= rep(prev,nrow(rel)-1)
+  rho_mat <- rel[-1,-1]
+   rho_mat[upper.tri(rho_mat)] <-  
+    apply(which(upper.tri(rho_mat),arr.ind = T),1,function(ind) {
+      prev1 <- rel_prev[ind[1]]
+      prev2 <- rel_prev[ind[2]]
+      r <- rel[-1,-1][ind[1],ind[2]]
+      mvtnorm::pmvnorm(lower = c(qnorm(1-prev1),qnorm(1-prev2)),
+                       sigma = matrix(c(1,r*h2,r*h2,1),2,2))})
+   rho_mat[lower.tri(rho_mat)] <-  t(rho_mat)[lower.tri(rho_mat)] 
+  
+   P <- rho_mat-rel_prev%*%t(rel_prev  )
+   diag(P) <-rel_prev*(1-rel_prev)
+  G <- h2*rel[-1,1]*(dnorm(qnorm(1-rel_prev)))
+  if(!is.null(rel_w)){
+  P <-    (rho_mat-rel_prev%*%t(rel_prev))*rel_w%*%t(rel_w)
+  diag(P) <-(rel_prev*rel_w*(1-rel_prev*rel_w))
+  G <- h2*rel[-1,1]*(dnorm(qnorm(1-rel_prev)))*rel_w
+    }
+  
+  c(r=sqrt(t(G[G>0])%*%solve(P[G>0,G>0])%*%G[G>0]/h2),n_rel=sum(G>0))}
+
+number2binary = function(number, noBits) {
+  binary_vector = rev(as.numeric(intToBits(number)))
+  if(missing(noBits)) {
+    return(binary_vector)
+  } else {
+    binary_vector[-(1:(length(binary_vector) - noBits))]
+  }
+}
+
+### 
+r_fgrs_pedigree_exact <- function(prev=0.2 , h2=.5, ped=NULL,rel_matrix=NULL,really=F){
+  if(is.null(rel_matrix))
+    rel <- kinship(pedigree(id=ped$id,dadid = ped$dadid,momid = ped$momid,sex=ped$sex))*2
+  else rel <- rel_matrix
+  #P <- h2*rel[-1,-1]*(dnorm(qnorm(1-prev)))^2
+  covmat=h2*rel
+  diag(covmat)<-1
+  covmat[1,1]=h2
+  nrel <- nrow(rel)-1
+  est_simple <- sapply(1:2^nrel, function(x)  number2binary(x,nrel)%*%solve(covmat[-1,-1])%*%covmat[1,-1] ) 
+  uni=data.table(i=1:2^nrel,est_simple)[,.(i=min(i),.N),est_simple]
+  if(nrow(uni)>1000&!really) stop(paste0(nrow(uni)," ", nrel-1 ,"variate integrations will take a long time"))
+  est <- sapply(uni$i, function(x) pa_fgrs(rel_status = number2binary(x,nrel),thr = qnorm(1-prev),covmat =covmat )[[1]]) 
+  prob=sapply(uni$i, function(x){
+    mvtnorm::pmvnorm(lower = ifelse(number2binary(x,nrel)==1,qnorm(1-prev),-Inf),upper = ifelse(number2binary(x,nrel)==0,qnorm(1-prev),Inf),sigma =covmat[-1,-1])})
+  var_fgrs= sum(uni$N*prob*est^2)
+  sqrt(var_fgrs/h2)
+}
+
+generate_pedigree <- function(ngen=2, child_pr_gen=2){
+  #ngen=2; child_pr_gen=1;
+  # index person  
+  ped=data.table(id=1,fid=2,mid=3,gen=1)
+  
+  if(ngen>1)   # Add ancestors
+    for(i in 1:(ngen-1)){
+      new = ped[!fid%in%id,unique(unlist(.(fid,mid)))]
+      ped=rbind(ped,data.table(id=new,fid=max(new)+(1:length(new)),mid=max(new)+length(new)+(1:length(new)),gen=i+1))}
+  
+  if(child_pr_gen>1)  # Add siblings
+    ped=rbind(ped,data.table(id=max(ped)+1:(nrow(ped)*(child_pr_gen-1)),fid=ped$fid,mid=ped$mid,gen=ped$gen))
+  
+  if(ngen>1 & child_pr_gen>1)   # Add Offspring for siblings
+    for(i in 1:(ngen-1)){  
+      new_f <- ped[!id %in% unlist(c(fid,mid))&gen>1,.(id,gen)]
+      ped=rbind(ped,data.table(id=max(ped$id)+(1:(nrow(new_f)*child_pr_gen)),fid=new_f$id,mid=new_f$id+100000,gen=new_f$gen-1))}
+  
+  # Add unrelated parents of relatives
+  fixParents(id=ped$id,dadid = ped$fid,momid = ped$mid,sex=rep(1,nrow(ped)))
+}
+
+
+
+
+
+
+sib_equivalents <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
+  p <- h2*rel_rr*dnorm(qnorm(1-prev))^2*(1+h2*rel_rr*qnorm(1-prev)^2/2)
+  P <- matrix(p,nrow = nrel,ncol=nrel)
+  diag(P) <-(prev*(1-prev))  
+  G <- matrix(h2*rel_ir,nrow = nrel)*(dnorm(qnorm(1-prev)))
+  acc= sqrt(t(G)%*%solve(P)%*%G/h2)
+  p1 <- 1+.5*h2*qnorm(1-prev)^2/2
+  p2 <- (prev*(1-prev))/(h2*(dnorm(qnorm(1-prev)))^2)
+  #acc^2*p2=nrel*.5^2-acc^2*.5*p1*nrel+acc^2*.5*p1
+  #acc^2*p2=nrel*(.5^2-acc^2*.5*p1)+acc^2*.5*p1
+  #nrel=(acc^2*p2-acc^2*.5*p1)/(.5^2-acc^2*.5*p1)
+  nrel=(p2*2-p1)/(.5/acc^2-p1)
+  nrel
+}
+
+acc_to_se <- function(acc, prev=0.2 , h2=.5){
+  p1 <- 1+.5*h2*qnorm(1-prev)^2/2
+  p2 <- (prev*(1-prev))/(h2*(dnorm(qnorm(1-prev)))^2)
+  nrel=(p2*2-p1)/(.5/acc^2-p1)
+  nrel
+}
+
+
+r_fgrs_gen_int <- function(ngen=2, child_pr_gen=2, prev=0.2 , h2=.5){
+  ped=generate_pedigree(ngen,child_pr_gen)
+  r_fgrs_pedigree_int(prev=prev,h2=h2,ped=ped)
+}
+r_fgrs_gen_2nd <- function(ngen=2, child_pr_gen=2, prev=0.2 , h2=.5){
+  ped=generate_pedigree(ngen,child_pr_gen)
+  r_fgrs_pedigree_2nd(prev=prev,h2=h2,ped=ped)
+}
+r_fgrs_gen_exact <- function(ngen=2, child_pr_gen=2, prev=0.2 , h2=.5){
+  ped=generate_pedigree(ngen,child_pr_gen)
+  r_fgrs_pedigree_exact(prev=prev,h2=h2,ped=ped)
+}
+
+r_fgrs_exact <- function(nrel,h2,rel_ir,rel_rr,prev){
+  #nrel=3;h2=.5;rel_ir=.5;rel_rr=.5;prev=.2
+  sigma=matrix(rel_rr*h2,nrel+1,nrel+1)
+  diag(sigma)<- 1
+  sigma[,1] <-sigma[1,] <-rel_ir*h2
+  sigma[1,1] <- h2
+  # the estimated liabilities if individual i given each 0:nrel affected relatives:   
+  pa_est <- sapply(0:nrel, function(n_aff){
+    #rowMeans(sapply(1:10,function(s) 
+    pa_fgrs(rel_status = #sample(
+              c(rep(0,nrel-n_aff),rep(1,n_aff))#)
+            ,thr = qnorm(1-prev),covmat = sigma)
+    #))
+  })
+  # Binomial coefficients: 
+  count <- sapply(0:nrel, function(n_aff){
+    choose(nrel,n_aff)})
+  
+  prob=sapply(0:(nrel), function(n_aff){
+    log(mvtnorm::pmvnorm(lower = c(rep( qnorm(1-prev),n_aff),rep(-Inf,nrel-n_aff)),upper = c(rep( Inf,n_aff),rep(qnorm(1-prev),nrel-n_aff)),sigma =sigma[-1,-1],abseps=0.0001))})
+  
+  var_fgrs=sum(exp(log(count)+prob)*pa_est[1,]^2   )#-sum(exp(log(count)+prob)*pa_est[1,])^2
+  acc=sqrt(var_fgrs/h2)
+  list(acc,data.frame(prob=log(count)+prob,est=pa_est[1,],prob2=prob))
+}
+
+
+
+r_fgrs_emp <- function(nrel=2 , prev=0.2 , h2=.5, rel_rr=0.5,rel_ir,N,method=c("pa","linear","quantitative"),rel_matrix=NULL,ped=NULL){
+  if(is.null(rel_matrix)){
+    if(!is.null(ped)){ 
+      rel_matrix <- kinship(pedigree(id=ped$id,dadid = ped$dadid,momid = ped$momid,sex=ped$sex))*2 }else
+      {rel_matrix <- matrix(rel_rr,nrow = nrel+1,ncol=nrel+1)
+      rel_matrix[,1] <- rel_matrix[1,] <-rel_ir }}
+  nrel=nrow(rel_matrix)-1  
+  covmat=rel_matrix*h2
+  diag(covmat) <-1  
+  covmat[1,1]=h2
+  liab <- MASS::mvrnorm(N,rep(0,nrel+1),Sigma = covmat)
+  status <- liab[,-1,drop=F]
+  if(!method=="quantitative") status <- status >qnorm(1-prev)
+  if(method=="pa") { if(length(unique(rel_matrix[-1,-1][lower.tri(rel_matrix[-1,-1])]))==1&
+                        length(unique(rel_matrix[1,-1]))==1){
+    N_aff=rowSums(status)
+    est = sapply(0:nrel,function(x)pa_fgrs(rel_status =c(rep(1,x),rep(0,nrel-x)),qnorm(1-prev),covmat = covmat)[1])
+    Lhat= est[N_aff+1]} else{
+      config= apply(status,1,function(x) paste(paste(which(x==1)),collapse = "_"))
+      uni <- which(!duplicated(config))
+      matching <- sapply(config, function(x) which(config[uni]==x ))
+      Lhat <- sapply(uni, function(x) pa_fgrs(rel_status = (status[x,]),thr = qnorm(1-prev),covmat = covmat)[1])[matching]
+    }
+  }else{
+    P <- cov(status)
+    #Lhat2 <- lm(data=data.frame(l=liab[,1],status),l~.)$fitted.values # risk of overfitting
+    Lhat <- status%*%solve(P)%*%(covmat[-1,1]*dnorm(qnorm(1-prev)))
+  }
+  acc=as.numeric(unlist(cor.test(liab[,1],Lhat))[c(4,9,10)])
+  names(acc) <- c("estimate","CI.1","CI.2")
+  acc
+}
+
+
+#' FGRS accuracy 
+#' 
+#' Estimate the expected accuracy of a family genetic risk score given a configuration of family members and the prevalence and heritability of the phenotype
+#' The input can have one of three formats: 
+#' it can be a pedigree object generated by kinship2::pedigree(),
+#' it can a (n x n) relatedness matrix or if all relatives have the same relationship to the index person and to each other,
+#' the imput can be the number of relatives, the relatedness coefficient between the index person and the relatives, and the 
+#' @param pedigree an optional object of class pedigree
+#' @param rel_matrix an optional (n x n) relatedness matrix
+#' @param nrel an optional integer denoting the number of relatives
+#' @param rel_rr if nrel is provided, the relationship coefficient between the relatives
+#' @param rel_ir if nrel is provided, the relationship coefficient between the index person and the relatives 
+#' @param h2 numeric denoting the heritability.
+#' @param prev numeric denoting the prevalence. 
+#' @param method the method for estimating the accuracy. Can be "pa" for the pa-fgrs method, "linear" or "linear2" for a linear predictor or "quantitative" for a linear predictor of a quantitative trait. 
+#' @param estimate the method for generating the estimate. Can be "theory" for the theoretical expectation or "simulate" for runnning a simulation. 
+#' @param Nsim if estimate = "simulate", the number of families to be simulated.
+#' 
+#' @examples 
+#' fgrs_accuracy(nrel=2, rel_rr=0.5, rel_ir=0.5, prev=0.1, h2=0.5, method= "pa", estimate="theory")
+
+fgrs_accuracy <- function(nrel=NULL, prev, h2, 
+                          rel_rr=NULL,rel_ir=NULL,rel_matrix=NULL,ped=NULL, 
+                          Nsim=10000,method=c("pa","linear","linear2","quantitative"),
+                          estimate=c("theory","simulate"),...)
+{
+  if(estimate=="theory")   {
+    if(is.null(rel_matrix)&is.null(ped)){
+      if(method=="pa") acc= r_fgrs_exact(nrel=nrel,prev=prev,rel_rr = rel_rr,rel_ir = rel_ir,h2=h2)[[1]]
+      if(method=="linear") acc= r_fgrs_expl_int(nrel=nrel,prev=prev,rel_rr = rel_rr,rel_ir = rel_ir,h2=h2)
+      if(method=="linear2")acc= r_fgrs_expl_2nd(nrel=nrel,prev=prev,rel_rr = rel_rr,rel_ir = rel_ir,h2=h2)
+      if(method=="quantitative") acc= r_EBV_expl(nrel=nrel,rel_rr = rel_rr,rel_ir =rel_ir,h2=h2)
+    }else{
+      if(method=="pa") acc= r_fgrs_pedigree_exact(prev=prev,ped = ped,rel_matrix = rel_matrix,h2=h2,...)[[1]]
+      if(method=="linear") acc= r_fgrs_pedigree_int(prev=prev,ped = ped,rel_matrix = rel_matrix,h2=h2)
+      if(method=="linear2")acc= r_fgrs_pedigree_2nd(prev=prev,ped = ped,rel_matrix = rel_matrix,h2=h2) 
+    }
+  } else { # simulate
+    if(is.null(rel_matrix)&is.null(ped)){
+      acc= r_fgrs_emp(nrel = nrel,prev = prev,h2 = h2,rel_rr = rel_rr,rel_ir = rel_ir,N = Nsim,method = method)  
+    } else { # simulate from pedigree
+      acc= r_fgrs_emp(prev = prev,h2 = h2,rel_matrix = rel_matrix,ped=ped ,N = Nsim,method = method)  
+    }
+  }
+  c(accuracy=acc,
+    sibling_equivalents=acc_to_se(acc[1],prev = prev,h2=h2))
+}
+
