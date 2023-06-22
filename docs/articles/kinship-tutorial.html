@@ -122,7 +122,7 @@
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">k</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/kinship2/man/kinship.html" class="external-link">kinship</a></span><span class="op">(</span><span class="va">single_ped</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    user  system elapsed </span></span>
-<span><span class="co">##   1.941   3.734   5.676</span></span></code></pre>
+<span><span class="co">##   2.053   8.037  10.114</span></span></code></pre>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">k</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [1] 9083 9083</span></span></code></pre>
@@ -133,7 +133,7 @@
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">k_sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/kinship_sparse.html">kinship_sparse</a></span><span class="op">(</span><span class="va">single_ped</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    user  system elapsed </span></span>
-<span><span class="co">##  22.061   1.163  23.226</span></span></code></pre>
+<span><span class="co">##  21.426   2.110  23.540</span></span></code></pre>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">k_sparse</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [1] 9083 9083</span></span></code></pre>
@@ -144,7 +144,7 @@
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">k_sparse_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/kinship_sparse_path.html">kinship_path</a></span><span class="op">(</span><span class="va">single_ped</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    user  system elapsed </span></span>
-<span><span class="co">## 165.294   1.145 166.030</span></span></code></pre>
+<span><span class="co">## 180.054   1.833 181.442</span></span></code></pre>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">k_sparse_path</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [1] 9083 9083</span></span></code></pre>

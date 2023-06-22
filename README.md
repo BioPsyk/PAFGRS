@@ -1,9 +1,9 @@
 # PA-FGRS
 
-## Tutorial 
-A tutorial can be found [here](https://htmlpreview.github.io/?https://github.com/BioPsyk/PAFGRS/blob/master/doc/tutorial.html).
+## Comprehensive Guide
+An in-depth tutorial elucidating the usage and functionalities of PA-FGRS is available in the Articles section at https://biopsyk.github.io/PAFGRS
 
-If you want to regenerate the vignette, then run the following code.
+For those who wish to delve deeper and regenerate the vignette, the requisite code is provided below. Please execute this in your R environment for the desired output.
 
 ``` r
 # Make sure to clone this repository
