@@ -1,0 +1,11 @@
+pandoc: 2.9.2.1
+pkgdown: 2.0.7
+pkgdown_sha: ~
+articles:
+  kinship-tutorial: kinship-tutorial.html
+  tutorial: tutorial.html
+last_built: 2023-06-22T09:01Z
+urls:
+  reference: https://github.com/BioPsyk/PAFGRS.git/reference
+  article: https://github.com/BioPsyk/PAFGRS.git/articles
+

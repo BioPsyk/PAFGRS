@@ -1,10 +1,15 @@
 Package: PAFGRS
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Title: PA-FGRS estimates genetic liabilities from phenotypic data of genetic relatives, while accounting for censoring and allowing for arbitrarily structured pedigrees.
+Version: 0.1.0
+Authors@R: c(
+  person("Morten", "Krebs", , "morten.dybdahl.krebs@regionh.dk", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-4452-0732")),
+  person("Jesper", "Gådin", , "jan.jesper.robert.gaadin@regionh.dk", role = c("aut"),
+           comment = c(ORCID = "0000-0002-9210-9534")),
+  person("Andrew", "Schork", , "Andrew.Joseph.Schork@rergionh.dk", role = c("aut"),
+           comment = c(ORCID = "0000-0003-4164-9335"))
+  )
+Description: This package implements our Pearson-Aitken family genetic risk scores (PA-FGRS). The method takes as input a relationship matrix and the disease status of relatives along with an estimate of the heritablity and (potentially stratified) information about life-time prevalence and age-specific cumulative incidence proportion. While modelling partially observed controls as a mixture of upper and lower truncated Gaussians, we use the Pearson-Aitken selection procedure to estimate the conditional expectation of the genetic liability.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
