@@ -1,7 +1,3 @@
-library(data.table)
-library(Matrix)
-library(devtools)
-load_all("PAFGRS")
 #' FGRS wrapper 
 #' 
 #' Compute (PA-)FGRS from for a large a dataset g
