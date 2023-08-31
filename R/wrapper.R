@@ -1,6 +1,6 @@
 #' FGRS wrapper 
 #' 
-#' Compute (PA-)FGRS from for a large a dataset g
+#' Compute (PA-)FGRS from for a large a dataset
 #' @param proband_ids vector of sample ids indicating which individuals FGRS should be estimated for. 
 #' @param K kinship matrix provided either as a \code{matrix}, a \code{dsCMatrix} or a \code{data.frame} with column names \code{i}, \code{j} and \code{x}.
 #' @param pheno \code{data.frame} containing the phenotype information on the relatives. Must contain columns called \code{id} and \code{aff}. 
@@ -14,8 +14,8 @@
 #' @param sib_mat optional \code{data.frame}  with colunm names \code{i} and \code{j} giving the \code{id}s of individuals that are siblings. 
 #' @param father_mat optional \code{data.frame}  with colunm names \code{i} and \code{j} giving the \code{id}s of individuals that are father-child relations.  
 #' @param mother_mat optional \code{data.frame}  with colunm names \code{i} and \code{j} giving the \code{id}s of individuals that are mother-child relations. 
-#' @export postM posterior mean liability 
-#' @export postVar posterior variance
+#' @return postM posterior mean liability 
+#' @return postVar posterior variance
 #' @examples 
 #' pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
 

@@ -47,8 +47,13 @@ FGRS_wrapper(
 
 \item{mother_mat}{optional \code{data.frame}  with colunm names \code{i} and \code{j} giving the \code{id}s of individuals that are mother-child relations.}
 }
+\value{
+postM posterior mean liability
+
+postVar posterior variance
+}
 \description{
-Compute (PA-)FGRS from for a large a dataset g
+Compute (PA-)FGRS from for a large a dataset
 }
 \examples{
 pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
