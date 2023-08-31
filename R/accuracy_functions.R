@@ -319,7 +319,7 @@ r_fgrs_emp <- function(nrel=2 , prev=0.2 , h2=.5, rel_rr=0.5,rel_ir,N,method=c("
 #' 
 #' @examples 
 #' fgrs_accuracy(nrel=2, rel_rr=0.5, rel_ir=0.5, prev=0.1, h2=0.5, method= "pa", estimate="theory")
-
+#' @export
 fgrs_accuracy <- function(nrel=NULL, prev, h2, 
                           rel_rr=NULL,rel_ir=NULL,rel_matrix=NULL,ped=NULL, 
                           Nsim=10000,method=c("pa","linear","linear2","quantitative"),

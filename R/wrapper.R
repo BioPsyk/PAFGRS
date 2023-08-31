@@ -18,8 +18,7 @@
 #' @return postVar posterior variance
 #' @examples 
 #' pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
-
-
+#' @export
 FGRS_wrapper <- function(proband_ids,K,pheno,method="PA",thr=NULL,w=NULL,h2=NULL,env_cor_s=1,env_cor_f=1,env_cor_m=1,sib_mat=NULL,father_mat=NULL,mother_mat=NULL){
   if(is.numeric(proband_ids)) proband_ids <- as.integer(proband_ids)
   if(class(K)[1]=="matrix") K <- as(K, "sparseMatrix")
