@@ -31,13 +31,15 @@ fgrs_accuracy(
 
 \item{rel_matrix}{an optional (n x n) relatedness matrix}
 
+\item{ped}{an optional object of class pedigree}
+
 \item{Nsim}{if estimate = "simulate", the number of families to be simulated.}
 
 \item{method}{the method for estimating the accuracy. Can be "pa" for the pa-fgrs method, "linear" or "linear2" for a linear predictor or "quantitative" for a linear predictor of a quantitative trait.}
 
 \item{estimate}{the method for generating the estimate. Can be "theory" for the theoretical expectation or "simulate" for runnning a simulation.}
 
-\item{pedigree}{an optional object of class pedigree}
+\item{...}{additional params}
 }
 \description{
 Estimate the expected accuracy of a family genetic risk score given a configuration of family members and the prevalence and heritability of the phenotype

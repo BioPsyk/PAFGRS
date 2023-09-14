@@ -37,6 +37,7 @@
 #' system.time(makefamid(mb3$id, mb3$fatherid, mb3$motherid))
 #' system.time(kinship(pedigree(mb3$id, mb3$fatherid, mb3$motherid, mb3$sex, famid=mb3$famid)))
 #' @importFrom methods as 
+#' @importFrom methods is 
 #' @export
 kinship_sparse <- function(id, ...) {
   UseMethod('kinship_sparse')
@@ -233,11 +234,9 @@ kinship_sparse.pedigreeList <- function(id, chrtype="autosome", ...) {
 #' @rdname kinship_sparse_path
 #' @importFrom igraph all_shortest_paths
 #' @importFrom igraph vertex_attr
-#' @importFrom FamAgg ped2graph
 #' @importFrom utils tail
 #' @importFrom Matrix sparseMatrix
 #' @import kinship2
-#' @import igraph
 #' @export
 kinship_path <- function(ped){
   ids <- ped$id

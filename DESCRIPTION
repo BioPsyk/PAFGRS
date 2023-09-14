@@ -1,5 +1,5 @@
 Package: PAFGRS
-Title: PA-FGRS estimates genetic liabilities from phenotypic data of genetic relatives, while accounting for censoring and allowing for arbitrarily structured pedigrees.
+Title: PA-FGRS estimates genetic liabilities from phenotypic data of genetic relatives, while accounting for censoring and allowing for arbitrarily structured pedigrees
 Version: 0.1.0
 Authors@R: c(
   person("Morten", "Krebs", , "morten.dybdahl.krebs@regionh.dk", role = c("aut", "cre"),
@@ -14,16 +14,19 @@ License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 VignetteBuilder: knitr
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
+Depends:
+  R (>= 3.5.0),
+  kinship2
 Imports:
     methods,
     knitr,
     rmarkdown,
     data.table,
-    FamAgg,
     igraph,
-    kinship2,
-    Matrix
+    Matrix,
+    MASS,
+    mvtnorm
 Suggests:
     ggplot2,
     testthat (>= 3.0.0)
