@@ -76,11 +76,12 @@ FGRS_wrapper <- function(proband_ids,K,pheno,method="PA",thr=NULL,w=NULL,h2=NULL
       stop(paste(round(par_kin25*100,1), "% of", colnames(pheno)[par_id], "have kinship==0.25 with 'id'. Is something wrong?"))
   }
   if(method!="OK2") { 
-  rels <- K[.(proband_ids),.(list(c(j))),i,nomatch=0]
-  more_rels <- K[j %in% proband_ids,.(list(c(i))),j]
-  rels=merge(rels,more_rels,by.x = "i",by.y = "j",all = T)
-  rels=merge(rels,data.table(i=proband_ids,key="i"),all.y = T)
-  rels_and_self=rels[,.(list(c(i,unlist(V1.y),unlist(V1.x)))),i]
+    rels <- K[.(proband_ids),.(list(c(j))),i,nomatch=0]
+    more_rels <- K[j %in% proband_ids,.(list(c(i))),j]
+    rels=merge(rels,more_rels,by.x = "i",by.y = "j",all = T)
+    rels=merge(rels,data.table(i=proband_ids,key="i"),all.y = T)
+    rels_and_self=rels[,.(list(c(i,unlist(V1.y),unlist(V1.x)))),i] 
+    }
 
   if(method=="OK") { 
     if(!is.null(h2)) stop("Ohlsson-Kendler method does not require h2 paramter")
