@@ -4,7 +4,7 @@
 #' @param proband_ids vector of sample ids indicating which individuals FGRS should be estimated for. 
 #' @param K kinship matrix provided either as a \code{matrix}, a \code{dsCMatrix} or a \code{data.frame} with column names \code{i}, \code{j} and \code{x}.
 #' @param pheno \code{data.frame} containing the phenotype information on the relatives. Must contain columns called \code{id} and \code{aff}. 
-#' @param method character indicating which FGRS method to use. Default is \code{method="PA"}. 
+#' @param method character indicating which FGRS method to use. Default is \code{method="PAFGRS"}. 
 #' @param thr numeric vector wiht threshold value used for each relative in \code{pheno}.
 #' @param w numeric vector of proportion of risk experienced by each relative in \code{pheno}.
 #' @param h2 numeric heritability estimate of the phenotype (liability scale). 
@@ -19,7 +19,7 @@
 #' @examples 
 #' pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
 #' @export
-FGRS_wrapper <- function(proband_ids,K,pheno,method="PA",thr=NULL,w=NULL,h2=NULL,env_cor_s=1,env_cor_f=1,env_cor_m=1,sib_mat=NULL,father_mat=NULL,mother_mat=NULL){
+FGRS_wrapper <- function(proband_ids,K,pheno,method="PAFGRS",thr=NULL,w=NULL,h2=NULL,env_cor_s=1,env_cor_f=1,env_cor_m=1,sib_mat=NULL,father_mat=NULL,mother_mat=NULL){
   if(is.numeric(proband_ids)) proband_ids <- as.integer(proband_ids)
   if(class(K)[1]=="matrix") K <- as(K, "sparseMatrix")
   if(class(K)[1]=="dsCMatrix"){
