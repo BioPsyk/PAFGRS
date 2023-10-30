@@ -146,8 +146,8 @@ FGRS_wrapper <- function(proband_ids,K,pheno,method="PAFGRS",thr=NULL,w=NULL,h2=
     vs = var(out$V2,na.rm = T)
     out[,FGRS := out[,V2*vs/(vs+vz/V3)]]
     out = out[,.(id,FGRS,n_rels,s=V2,vs=vs,vz=vz,sum_r=V3)]
-      } else if(method=="PAFGRS") out=data.frame(id=rels_and_self[,i], t(ghat),n_rels=rels_and_self[,sapply(V1,length)-1])
-  }
+      } else if(method=="PAFGRS") {out=data.frame(id=rels_and_self[,i], t(ghat),n_rels=rels_and_self[,sapply(V1,length)-1])}
+  
   if(method=="OK2"){
   K <- data.table(K)
   K[,i_ind:=match(i,pheno$id)]
