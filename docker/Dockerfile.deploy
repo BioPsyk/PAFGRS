@@ -1,0 +1,21 @@
+ARG BASE_IMAGE=ibp-cleansumstats-base:latest
+
+FROM $BASE_IMAGE
+
+WORKDIR /pafgrs
+
+COPY data ./data
+COPY DESCRIPTION ./DESCRIPTION
+COPY docker ./docker
+COPY docs ./docs
+COPY man ./man
+COPY NAMESPACE ./NAMESPACE
+COPY _pkgdown.yml ./_pkgdown.yml
+COPY R ./R
+COPY README.md ./README.md
+COPY scripts ./scripts
+COPY vignettes ./vignettes
+
+WORKDIR /home/nextflow
+
+
