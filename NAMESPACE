@@ -3,6 +3,7 @@
 S3method(kinship_sparse,default)
 S3method(kinship_sparse,pedigree)
 S3method(kinship_sparse,pedigreeList)
+export(FGRS)
 export(FGRS_wrapper)
 export(fgrs_accuracy)
 export(kinship_path)
