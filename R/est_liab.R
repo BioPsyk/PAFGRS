@@ -150,3 +150,50 @@ pa_fgrs2thr <- function(rel_t1=NA,rel_t2=NA,rel_w=rep(1,length(rel_t1)),covmat,i
     return(c(postM=new_m,postVar=new_cov))}
 }
 
+#' FGRS 
+#' 
+#' Our implementations of Kendler et al.
+
+#' @param df data.frame with one row per individual with columns containing the phenotype information on the relatives
+#' @param stat_cols vector of names of the columns containing the disease status of the relatives
+#' @param age_cols vector of names of the columns containing the age of the relatives
+#' @param rel_mat relatedness matrix with the first row and column correponding to the index person a subsequent rows to the relatives.
+#' @param prev numeric indicating disease prevalence
+#' @param env_cor optional numeric. Factor by which the first degree relatives are downweighted.
+#' @param aoo a function that transforms the age values into a proportion of risk experienced by the individual
+#' @export
+FGRS <- function(df, stat_cols=which(grepl("stat",colnames(df))) ,age_cols=which(grepl("age",colnames(df))) , rel_mat, prev, env_cor=1, aoo){ 
+  N=nrow(df)
+  age= as.matrix(df[,age_cols])
+  status= as.matrix(df[,stat_cols])
+  
+  w <- apply(age,2,aoo)
+  w[!is.na(status)&status==1] <- 1 
+  
+  zhat_above = integrate(qnorm,1-prev,1)[[1]]/prev
+  zhat_below = integrate(qnorm,0,1-prev)[[1]]/(1-prev)
+  
+  zhat  <- apply(status, 2, function(x) ifelse(x==1,zhat_above,zhat_below)) 
+  
+  df <- cbind(df, age= age, w= w , zhat=zhat)
+  
+  # number of relatives >0
+  df$n_rel <- apply(df[,2:nrow(rel_mat)],1,function(x) sum(!is.na(x)))
+  #df <- df[!df$n_rel==0,]
+  
+  stat_cols <- which(grepl("stat",colnames(df)))  
+  zhat_cols <- which(grepl("zhat",colnames(df)))  
+  w_cols <- which(grepl("w",colnames(df)))  
+  pr_cols <- which(grepl("prop_risk",colnames(df)))  
+  max_rel <- length(zhat_cols)
+  
+  # Summaries of family risk:
+  df$sum_rzw <- rowSums(df[,zhat_cols]*df[,w_cols]*t(matrix(rel_mat[1,-1]*ifelse(rel_mat[1,-1]==0.5,env_cor,1),max_rel,N)),na.rm = T)
+  
+  df$sum_r <- rowSums(as.numeric(!is.na(df[,zhat_cols]))*t(matrix(rel_mat[1,-1],max_rel,N)),na.rm = T)
+  
+  df$mean_rzw <- df$sum_rzw/df$n_rel
+  var_rel<-   var(unlist(df[,zhat_cols]),na.rm=T)  
+  df$mean_rzw_shrunk <- df$mean_rzw*(var(df$mean_rzw,na.rm = T)/(var(df$mean_rzw,na.rm = T)+var_rel/df$sum_r))
+  df$mean_rzw_shrunk  
+}
