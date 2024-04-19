@@ -2,8 +2,19 @@
 % Please edit documentation in R/est_liab.R
 \name{pa_fgrs}
 \alias{pa_fgrs}
-\title{PA-FGRS}
+\alias{pa_fgrs_adt}
+\alias{pa_fgrs_cont}
+\title{PA-FGRS\link{mix}, PA-FGRS\link{adt} and PA-FGRS\link{cont}}
 \usage{
+pa_fgrs_adt(
+  rel_status,
+  thr = NA,
+  rel_thr = rep(thr, length(rel_status)),
+  covmat,
+  i_status = NA,
+  i_thr = thr
+)
+
 pa_fgrs(
   rel_status,
   thr = NA,
@@ -12,18 +23,17 @@ pa_fgrs(
   covmat,
   i_status = NA,
   i_thr = thr,
-  i_w = 1,
-  conditional.mix = T
+  i_w = 1
 )
+
+pa_fgrs_cont(rel_value, covmat, i_value = NA)
 }
 \arguments{
 \item{rel_status}{vector with status of relatives 1=affected, 0=not affected, NA= missing}
 
 \item{thr}{threshold value used for all individuals (relatives and index person)}
 
-\item{rel_thr}{optional vector of specific threshold for each relative}
-
-\item{rel_w}{optional vector of proportion of risk experienced by each relative}
+\item{rel_thr}{optional vector of specific lower truncation for each relative}
 
 \item{covmat}{covariance matrix of liabilities. First row and column correspoding to index person,subsequent rows and columns corresponding to relatives.}
 
@@ -31,7 +41,9 @@ pa_fgrs(
 
 \item{i_thr}{optional specific threshold for index person}
 
-\item{i_w}{optional proportion of risk experienced by index person}
+\item{rel_w}{optional vector of proportion of risk experienced by each relative (used only in PA-FGRS\link{mix})}
+
+\item{i_w}{optional proportion of risk experienced by index person (used only in PA-FGRS\link{mix})}
 
 \item{conditional.mix}{logical indicator of wether the mixture of proportions should be conditional (default=TRUE).}
 }
@@ -39,6 +51,6 @@ pa_fgrs(
 Compute posterior mean and variance of liability of index person given disease status, thresholds and proportion of risk observed in relatives.
 }
 \examples{
-pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
-
+pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3),rel_w=c(.5,1))
+pa_fgrs_adt(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
 }
