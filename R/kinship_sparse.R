@@ -300,8 +300,8 @@ kinship_path <- function(ped){
   # set data.table variables to make R checker happy (recomended solution by data.table team)
   id1 <- id2 <- gen.x <- gen.y <- path <- r <- NULL
   # combine anc, dec and other 
-  rel <- data.table(rbind.data.frame(data.table(anc)[,.(id1,id2,gen.x,gen.y,path)],
-                                     data.table(dec)[,.(id1,id2,gen.x,gen.y,path)],
+  rel <- data.table(rbind.data.frame(data.table(anc)[,.(id1,id2,gen.y=gen.x,gen.x=gen.y,path)],
+                                     data.table(dec)[,.(id1,id2,gen.y=gen.x,gen.x=gen.y,path)],
                                      other[,.(id1,id2,gen.x,gen.y,path)]))
   
   # computed relatedness per path 
