@@ -162,18 +162,50 @@ r_fgrs_expl_int <- function(nrel=2 , prev=0.2 , h2=.5, rel_ir=0.5,rel_rr=0.5){
 
 
 # fgrs accuracy given pedigree or relatedness matrix - 2nd order taylor approximation :
-r_fgrs_pedigree_2nd <- function(prev=0.2 , h2=.5, ped=NULL,rel_matrix=NULL){
-  if(is.null(rel_matrix))
-    rel <- kinship(pedigree(id=ped$id,dadid = ped$dadid,momid = ped$momid,sex=ped$sex))*2
-  else rel <- rel_matrix
-  #P <- h2*rel[-1,-1]*(dnorm(qnorm(1-prev)))^2
-  P <- h2*rel[-1,-1]*dnorm(qnorm(1-prev))^2*(1+h2*rel[-1,-1]*qnorm(1-prev)^2/2)
-  diag(P) <-(prev*(1-prev))  
+r_fgrs_pedigree_2nd =
+function (prev = 0.2, h2 = 0.5, ped = NULL, rel_matrix = NULL, rel_w=NULL, rel_prev=NULL) {
+  if (is.null(rel_matrix))
+    rel <- kinship(pedigree(id = ped$id, dadid = ped$dadid,
+                           momid = ped$momid, sex = ped$sex)) * 2 else rel <- rel_matrix
+  if(is.null(rel_prev)) rel_prev= rep(prev,nrow(rel)-1)
+  if(is.null(rel_w)) rel_w <- rep(1, length(rel_prev)) # Default all weights to 1
   
-  diag(P) <-(prev*(1-prev))  
-  G <- h2*rel[-1,1]*(dnorm(qnorm(1-prev)))
-  c(r=sqrt(t(G)%*%solve(P)%*%G/h2),n_rel=sum(G>0))}
-
+  P <- h2 * rel[-1, -1,drop=F] * dnorm(qnorm(1 - rel_prev))^2 * (1 + h2 *
+                                                                   rel[-1, -1,drop=F] * qnorm(1 - rel_prev)^2/2)
+  diag(P) <- (rel_prev * (1 - rel_prev))
+  G <- h2 * rel[-1, 1] * (dnorm(qnorm(1 - rel_prev))) * rel_w
+  if(!is.null(rel_w)){
+    P <-   P*rel_w%*%t(rel_w)
+    diag(P) <-(rel_prev*rel_w*(1-rel_prev*rel_w))
+    G <- h2*rel[-1,1]*(dnorm(qnorm(1-rel_prev)))*rel_w
+  }
+  
+  # This is the critical part that might fail - wrap in tryCatch
+  tryCatch({
+    if(any(G>0)) {
+      P_sub <- P[G>0, G>0]
+      
+      # Optional: Check condition number for numerical stability (much faster than eigenvalues)
+      # if(rcond(P_sub) < 1e-12) {
+      #   return(c(r=NA, n_rel=sum(G>0)))
+      # }
+      
+      # Direct matrix solving - let solve() handle singularity detection
+      r_value <- sqrt(t(G[G>0]) %*% solve(P_sub) %*% G[G>0]/h2)[1]
+      n_rel_value <- sum(G>0)
+      return(c(r=r_value, n_rel=n_rel_value))
+    } else {
+      return(c(r=NA, n_rel=sum(G>0)))
+    }
+  },
+  error = function(e) {
+    # Streamlined error handling - matrix inversion failed (likely singular)
+    if(any(G>0)) {
+      message("Matrix inversion failed for ", sum(G>0), " relatives - likely singular matrix")
+    }
+    return(c(r=NA, n_rel=sum(G>0)))
+  })
+}
 # fgrs accuracy given pedigree or relatedness matrix - numerical integration :
 r_fgrs_pedigree_int <- function(prev=0.2 , h2=.5, ped=NULL,rel_matrix=NULL,rel_w=NULL,rel_prev=NULL){
   if(is.null(rel_matrix))
