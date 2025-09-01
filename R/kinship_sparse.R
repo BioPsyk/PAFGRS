@@ -236,7 +236,7 @@ kinship_sparse.pedigreeList <- function(id, chrtype="autosome", ...) {
 #' @importFrom igraph vertex_attr
 #' @importFrom utils tail
 #' @importFrom Matrix sparseMatrix
-#' @import kinship2
+#' @import kinship2 data.table
 #' @export
 kinship_path <- function(ped){
   ids <- ped$id
@@ -300,6 +300,7 @@ kinship_path <- function(ped){
   # set data.table variables to make R checker happy (recomended solution by data.table team)
   id1 <- id2 <- gen.x <- gen.y <- path <- r <- NULL
   # combine anc, dec and other 
+ 
   rel <- data.table(rbind.data.frame(data.table(anc)[,.(id1,id2,gen.y=gen.x,gen.x=gen.y,path)],
                                      data.table(dec)[,.(id1,id2,gen.y=gen.x,gen.x=gen.y,path)],
                                      other[,.(id1,id2,gen.x,gen.y,path)]))
@@ -308,7 +309,10 @@ kinship_path <- function(ped){
   rel[,r:= 0.5^(gen.x)*0.5^(gen.y)] 
   
   # sum all paths per relative pair: 
-  k <- rel[,.(k=sum(r)/2,gen.x=mean(gen.x),gen.y=mean(gen.y)),.(id1,id2)]
+  k <- rel[, .(k = sum(get("r"))/2, 
+               gen.x = mean(get("gen.x")), 
+               gen.y = mean(get("gen.y"))), 
+           by = .(id1=get("id1"), id2=get("id2"))]
   k <- rbind.data.frame(k,data.frame(id1=ids,id2=ids,k=.5,gen.x=0,gen.y=0))
   k$ind1=match(k$id1,ids)
   k$ind2=match(k$id2,ids)

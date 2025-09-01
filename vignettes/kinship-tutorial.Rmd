@@ -22,6 +22,7 @@ This is a short demonstration of how to compute the kinship matrix when predigre
 # Load PAFGRS package
 
 ```{r, PAFGRS}
+library(data.table)
 library(PAFGRS)
 
 ```

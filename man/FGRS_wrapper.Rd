@@ -8,7 +8,7 @@ FGRS_wrapper(
   proband_ids,
   K,
   pheno,
-  method = "PA",
+  method = "PAFGRS",
   thr = NULL,
   w = NULL,
   h2 = NULL,
@@ -27,7 +27,7 @@ FGRS_wrapper(
 
 \item{pheno}{\code{data.frame} containing the phenotype information on the relatives. Must contain columns called \code{id} and \code{aff}.}
 
-\item{method}{character indicating which FGRS method to use. Default is \code{method="PA"}.}
+\item{method}{character indicating which FGRS method to use. Default is \code{method="PAFGRS"}.}
 
 \item{thr}{numeric vector wiht threshold value used for each relative in \code{pheno}.}
 

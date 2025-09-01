@@ -16,7 +16,7 @@
 #' @param mother_mat optional \code{data.frame} with column names \code{i} and \code{j} giving the \code{id}s of individuals that are mother-child relations.
 #' @param exclude_mat optional \code{data.frame} with column names \code{i} and \code{exclude} the latter containing the \code{id}s
 #' of relatives that should be excluded when computing the liability of individual \code{i}.
-@param keep_mat optional \code{data.frame} with column names \code{i} and \code{keep} the latter containing the \code{id}s
+#' @param keep_mat optional \code{data.frame} with column names \code{i} and \code{keep} the latter containing the \code{id}s
 #' of relatives that should be kept when computing the liability of individual \code{i}.
 #' @return postM posterior mean liability
 #' @return postVar posterior variance
@@ -44,7 +44,7 @@ FGRS_wrapper_reltypes <- function(proband_ids,K,pheno,method="PAFGRS",
     K[,j:=as.integer(j)]}else{
       K <- rbind(K[i<j,],K[i>j,.(i=j,j=i,x)])[!duplicated(paste(i,j))]
     }
-  }
+
   if(!all(c("i","j","x") %in% colnames(K))) stop("K should contain columns 'i', 'j' and 'x'")
   if(K[,any(i==j)]) if(K[i==j,.N,x][order(-N)][1,x==1]) stop("most i==j entries in K are 1, did you provide relatedness matrix instead of kinship matrix?")
   if(any(!proband_ids %in% K[,c(unique(i),unique(j))])) warning("some proband_ids are not in K")
@@ -85,7 +85,7 @@ FGRS_wrapper_reltypes <- function(proband_ids,K,pheno,method="PAFGRS",
   if(any(!proband_ids %in% K[,c(unique(i),unique(j))])) warning("some proband_ids do not seem to have any relatives, returning postM=0")
   if(any(!colnames(pheno) %in% c("fatherid","motherid","id_f","id_m","momid","dadid"))){
     par_id <- min(which(!colnames(pheno) %in% c("fatherid","motherid","id_f","id_m","momid","dadid")))
-    par_kin25 <-K[colnames(pheno)=="id"],par_id],with=F][,c("i","j")][i<j],on=.(i,j),nomatch=0]
+    par_kin25 =K[setNames(pheno[,c(which(colnames(pheno)=="id"),par_id),with=F],c("i","j"))[i<j],on=.(i,j),mean(x==.25,na.rm=T)]
     if(abs(par_kin25-1)>0.05)
       stop(paste(round(par_kin25*100,1), "% of", colnames(pheno)[par_id], "have kinship==0.25 with 'id'. Is something wrong?"))}
   
@@ -176,51 +176,3 @@ FGRS_wrapper_reltypes <- function(proband_ids,K,pheno,method="PAFGRS",
   return(data.frame(out))
 }
 
-# Example usage function
-run_pafgrs_analysis <- function(kinship_file, pheno_file, output_file = "pafgrs_results.csv") {
-  
-  cat("Loading data...\n")
-  
-  # Load kinship matrix (assuming it's in a format with i, j, x columns)
-  K <- fread(kinship_file)
-  
-  # Load phenotype data (assuming it has id, aff, thr, w columns)
-  pheno <- fread(pheno_file)
-  
-  # Get proband IDs (individuals with aff == 1, or specify your own logic)
-  proband_ids <- pheno[aff == 1, id]
-  
-  cat("Running PAFGRS analysis...\n")
-  
-  # Run the analysis
-  results <- FGRS_wrapper_reltypes(
-    proband_ids = proband_ids,
-    K = K,
-    pheno = pheno,
-    method = "PAFGRS"
-  )
-  
-  # Save results
-  fwrite(results, output_file)
-  cat("Results saved to:", output_file, "\n")
-  
-  return(results)
-}
-
-# Command line interface
-if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  
-  if (length(args) < 2) {
-    cat("Usage: Rscript pafgrs_wrapper.R <kinship_file> <pheno_file> [output_file]\n")
-    cat("Example: Rscript pafgrs_wrapper.R kinship.txt phenotypes.txt results.csv\n")
-    quit(status = 1)
-  }
-  
-  kinship_file <- args[1]
-  pheno_file <- args[2]
-  output_file <- if (length(args) > 2) args[3] else "pafgrs_results.csv"
-  
-  results <- run_pafgrs_analysis(kinship_file, pheno_file, output_file)
-  cat("Analysis complete!\n")
-}
