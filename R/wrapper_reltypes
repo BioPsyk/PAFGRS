@@ -1,0 +1,226 @@
+#' FGRS_wrapper_reltypes
+#'
+#' Compute (PA-)FGRS from for a large a dataset
+#' @param proband_ids vector of sample ids indicating which individuals FGRS should be estimated for.
+#' @param K kinship matrix provided either as a \code{matrix}, a \code{dsCMatrix} or a \code{data.frame} with column names \code{i}, \code{j} and \code{x}.
+#' @param pheno \code{data.frame} providing phenotype information on the relatives. Must contain columns called \code{id} and \code{aff}.
+#' @param method character indicating which FGRS method to use. Default is \code{method="PAFGRS"}.
+#' @param thr numeric vector with threshold value used for each relative in \code{pheno}.
+#' @param w numeric vector of proportion of risk experienced by each relative in \code{pheno}.
+#' @param h2 numeric heritability estimate of the phenotype (liability scale).
+#' @param env_cor_s numeric indicating the down-weighting of siblings (only used for Ohlsson-Kendler FGRS). Default =1 (no correction).
+#' @param env_cor_f numeric indicating the down-weighting of fathers (only used for Ohlsson-Kendler FGRS). Default =1 (no correction).
+#' @param env_cor_m numeric indicating the down-weighting of mothers (only used for Ohlsson-Kendler FGRS). Default =1 (no correction).
+#' @param sib_mat optional \code{data.frame} with column names \code{i} and \code{j} giving the \code{id}s of individuals that are siblings.
+#' @param father_mat optional \code{data.frame} with column names \code{i} and \code{j} giving the \code{id}s of individuals that are father-child relations.
+#' @param mother_mat optional \code{data.frame} with column names \code{i} and \code{j} giving the \code{id}s of individuals that are mother-child relations.
+#' @param exclude_mat optional \code{data.frame} with column names \code{i} and \code{exclude} the latter containing the \code{id}s
+#' of relatives that should be excluded when computing the liability of individual \code{i}.
+@param keep_mat optional \code{data.frame} with column names \code{i} and \code{keep} the latter containing the \code{id}s
+#' of relatives that should be kept when computing the liability of individual \code{i}.
+#' @return postM posterior mean liability
+#' @return postVar posterior variance
+#' @examples
+#' pa_fgrs(c(0,1),qnorm(.9),covmat = matrix(c(.5,.25,.25,.25,1,.25,.25,.25,1),3))
+#' @export
+
+FGRS_wrapper_reltypes <- function(proband_ids,K,pheno,method="PAFGRS",
+                                 thr=NULL,w=NULL,h2=NULL,env_cor_s=1,
+                                 env_cor_f=1,env_cor_m=1,sib_mat=NULL,
+                                 father_mat=NULL,mother_mat=NULL,
+                                 exclude_mat=NULL,keep_mat=NULL){
+  if(is.numeric(proband_ids)) proband_ids <- as.integer(proband_ids)
+  if(class(K)[1]=="matrix") K <- as(K, "sparseMatrix")
+  if(class(K)[1]=="dsCMatrix"){
+    k_dt <- data.table(summary(K))
+    k_dt[,i:=rownames(K)[i]]
+    k_dt[,j:=rownames(K)[j]]
+    K<- k_dt
+    rm(k_dt)
+  }
+  if(class(K)[1]=="data.frame") K <- data.table(K)
+  if(is.integer(proband_ids)){
+    K[,i:=as.integer(i)]
+    K[,j:=as.integer(j)]}else{
+      K <- rbind(K[i<j,],K[i>j,.(i=j,j=i,x)])[!duplicated(paste(i,j))]
+    }
+  }
+  if(!all(c("i","j","x") %in% colnames(K))) stop("K should contain columns 'i', 'j' and 'x'")
+  if(K[,any(i==j)]) if(K[i==j,.N,x][order(-N)][1,x==1]) stop("most i==j entries in K are 1, did you provide relatedness matrix instead of kinship matrix?")
+  if(any(!proband_ids %in% K[,c(unique(i),unique(j))])) warning("some proband_ids are not in K")
+  K <-K[i!=j,]
+  if(K[,any(i<j)]){
+    if(!K[,any(i>j)]) K <- K[,.(i=j,j=i,x)] # just flip i and j
+    ij_repeats<-K[K[j<i,.(i=j,j=i,x)],on=c("i","j"),nomatch=0]
+    if(nrow(ij_repeats)>0){
+      if(ij_repeats[,all(x==i.x)]) K <- rbind(K[i>j],K[i>j,.(i=j,j=i,x)][,.(x=mean(x)),.(i,j)]) else
+        stop("conflicting entries in K")} else
+          K <- rbind(K[i>j],K[i>j,.(i=j,j=i,x)])
+  }
+  if(K[,any(x==1)]) stop("some i!=j entries in K have x==1, did you provide relatedness matrix instead of kinship matrix?")
+  if(K[x==.5,.N]>K[x==.25,.N]) stop("more i!=j entries in K have x==0.5 than x==0.25, did you provide relatedness matrix instead of kinship matrix?")
+  setkey(K,i,j)
+  
+  # sib_mat
+  if(!is.null(sib_mat)){
+    if(class(sib_mat)[1]=="data.frame") sib_mat <- data.table(sib_mat) else
+      if(class(sib_mat)[1]=="data.table") stop("sib_mat should be either a data.frame or a data.table")
+    setkey(sib_mat,i,j)}
+  
+  if(!is.null(thr)) pheno$thr = thr
+  if(!"thr" %in% colnames(pheno))
+    stop("'thr' should be provided either as a column in 'pheno' or by the 'thr' argument")
+  if(is.null(w)) pheno$w = w
+  if(!"w" %in% colnames(pheno))
+    stop("'w' should be provided either as column in 'pheno' or by the 'w' argument")
+  
+  pheno <- data.table(pheno)
+  if(!all(c("id","aff") %in% colnames(pheno))) stop("'pheno' should contain columns 'id' and 'aff'")
+  setkey(pheno,id)
+  if(pheno[,any(aff==1&w!=1)]) { pheno[aff==1,w:=1]
+    message("setting w=1, for all relatives with aff==1")}
+  if(pheno[,any(is.na(w))]) { pheno[is.na(w),w:=0]
+    message("setting w=0, for all relatives with is.na(w)")}
+  #if(any(!proband_ids %in% pheno$id)) stop("some proband_ids are not in pheno$id")
+  if(any(!proband_ids %in% K[,c(unique(i),unique(j))])) warning("some proband_ids do not seem to have any relatives, returning postM=0")
+  if(any(!colnames(pheno) %in% c("fatherid","motherid","id_f","id_m","momid","dadid"))){
+    par_id <- min(which(!colnames(pheno) %in% c("fatherid","motherid","id_f","id_m","momid","dadid")))
+    par_kin25 <-K[colnames(pheno)=="id"],par_id],with=F][,c("i","j")][i<j],on=.(i,j),nomatch=0]
+    if(abs(par_kin25-1)>0.05)
+      stop(paste(round(par_kin25*100,1), "% of", colnames(pheno)[par_id], "have kinship==0.25 with 'id'. Is something wrong?"))}
+  
+  if("OK2"%in%method) {
+    rels <- K[.(proband_ids),.(list(c(j))),i,nomatch=0]
+    more_rels <- K[j %in% proband_ids,.(list(c(i))),j]
+    rels<-merge(rels,more_rels,by.x = "i",by.y = "j",all = T)
+    rels<-merge(rels,data.table(i=proband_ids,key="i"),all.y = T)
+    rels_and_self<-rels[,.(list(c(i,unlist(V1.x),unlist(V1.y)))),i]
+  }
+  
+  ghat <- sapply(rels_and_self[,V1], function(k){
+    
+    if(!is.null(exclude_mat)) {
+      exclude = exclude_mat[i==k[1],exclude]
+      k <- k[!k%in%exclude]}
+    if(!is.null(keep_mat)) {
+      keep = keep_mat[i==k[1],keep]
+      keep<-c(k[1],keep)
+      k <- k[k %in% keep]}
+    
+    k_proband <- K[CJ(i=k,j=k,unique = T)[i<j],on=.(i,j),nomatch=0]
+    pheno_k <- pheno[.(k)]
+    k_proband[,i_ind:=match(i,sort(k))]
+    k_proband[,j_ind:=match(j,sort(k))]
+    if("OK" %in% method)
+      h2 <- 1
+    if(length(k)>1)
+      covmat <- sparseMatrix(k_proband$i_ind,
+                            k_proband$j_ind,
+                            x=k_proband$x*2*h2,
+                            symmetric = T,
+                            dims=list(1:k_proband[,max(c(i_ind,j_ind))],1:k_proband[,max(c(i_ind,j_ind))])) else
+                              covmat <- matrix(h2)
+    rel_mat <- covmat/h2
+    diag(rel_mat) <- 1
+    covmat[1,1] <- h2
+    
+    if("OK"%in%method) {
+      if(length(k)>1) {
+        pheno_k$r = covmat[,1]/h2
+        pheno_k$c=1
+        
+        if(!is.null(sib_mat)){ pheno_k$c = pheno_k$c*ifelse(pheno_k[,id] %in% sib_mat[i==pheno_k[1,id],j],env_cor_s,1)}
+        if(!is.null(father_mat)){
+          pheno_k$c =
+            pheno_k$c*ifelse(pheno_k[,id] %in% father_mat[i==pheno_k[1,id],j],
+                             env_cor_f,1)}
+        if(!is.null(mother_mat)){
+          pheno_k$c =
+            pheno_k$c*ifelse(pheno_k[,id] %in% mother_mat[i==pheno_k[1,id],j],
+                             env_cor_m,1)}
+        out1 <- data.frame(pheno_k[,-1,.(mean(z*w*r*c,na.rm=T),sum(r[!is.na(z*w*r*c)]))]) } else
+          out1 <- data.frame(0,0)
+      
+    } else if("PAFGRS"%in%method) {
+      out1 <- pa_fgrs(rel_status = pheno_k$aff[-1],
+                      rel_thr =pheno_k$thr[-1],
+                      rel_w = pheno_k$w[-1],
+                      covmat = as.matrix(covmat))}
+    if("accuracy"%in%method) {
+      if(length(k)>1){
+        out2 <- r_fgrs_pedigree_2nd(h2=h2, rel_prev =1-pnorm(pheno_k$thr[-1]),
+                                   rel_w = pheno_k$w[-1],
+                                   rel_mat = as.matrix(rel_mat))} else {
+                                     out2=c(0,0)}
+      if(length(method)>1) out1 <- c(out1,out2) else out1 <- out2}
+    
+    return(out1)
+  })
+  
+  if("OK"%in%method) {
+    out <- data.table(id=rels_and_self[,i], unlist(t(ghat)[,1]),unlist(t(ghat)[,2]),n_rels=rels_and_self[,sapply(V1,length)-1])
+    V2 = var(pheno$z,na.rm = T)
+    V3 = var(out$V2,na.rm = T)
+    out[,FGRS := out[,V2*V3/(V3+V2+V3)]]
+    out = out[,.(id,FGRS,n_rels,s=V2,vs=V3,vz=V2,sum_r=V3)]
+  } else if("PAFGRS"%in%method) {out<-data.frame(id=rels_and_self[,i], t(ghat),n_rels=rels_and_self[,sapply(V1,length)-1])}
+  if("OK2"%in%method){
+    K <- data.table(K)
+    K[,i_ind:=match(i,pheno$id)]
+    K[,j_ind:=match(j,pheno$id)]
+    k_sparse_t <- sparseMatrix(i = K$i_ind,j = K$j_ind, x = K$x,dims = rep(length(pheno$id),2),dimnames =list(pheno$id,pheno$id) ,symmetric = T)
+    
+    out <-FGRS_kendler(pheno_t = pheno,k_sparse_t = k_sparse_t,sib_mat_t = sib_mat,father_mat_t = father_child_mat,
+                      mother_mat_t = mother_child_mat,env_cor_f = 0.5,env_cor_m = 0.5,env_cor_sib =0.5 )
+  }
+  return(data.frame(out))
+}
+
+# Example usage function
+run_pafgrs_analysis <- function(kinship_file, pheno_file, output_file = "pafgrs_results.csv") {
+  
+  cat("Loading data...\n")
+  
+  # Load kinship matrix (assuming it's in a format with i, j, x columns)
+  K <- fread(kinship_file)
+  
+  # Load phenotype data (assuming it has id, aff, thr, w columns)
+  pheno <- fread(pheno_file)
+  
+  # Get proband IDs (individuals with aff == 1, or specify your own logic)
+  proband_ids <- pheno[aff == 1, id]
+  
+  cat("Running PAFGRS analysis...\n")
+  
+  # Run the analysis
+  results <- FGRS_wrapper_reltypes(
+    proband_ids = proband_ids,
+    K = K,
+    pheno = pheno,
+    method = "PAFGRS"
+  )
+  
+  # Save results
+  fwrite(results, output_file)
+  cat("Results saved to:", output_file, "\n")
+  
+  return(results)
+}
+
+# Command line interface
+if (!interactive()) {
+  args <- commandArgs(trailingOnly = TRUE)
+  
+  if (length(args) < 2) {
+    cat("Usage: Rscript pafgrs_wrapper.R <kinship_file> <pheno_file> [output_file]\n")
+    cat("Example: Rscript pafgrs_wrapper.R kinship.txt phenotypes.txt results.csv\n")
+    quit(status = 1)
+  }
+  
+  kinship_file <- args[1]
+  pheno_file <- args[2]
+  output_file <- if (length(args) > 2) args[3] else "pafgrs_results.csv"
+  
+  results <- run_pafgrs_analysis(kinship_file, pheno_file, output_file)
+  cat("Analysis complete!\n")
+}
